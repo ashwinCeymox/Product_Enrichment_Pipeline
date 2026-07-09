@@ -1,0 +1,35 @@
+# ── Environment & Secrets ──
+backend/.env
+.env
+
+# ── Python ──
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# ── Node ──
+node_modules/
+frontend/dist/
+
+# ── Runtime / Temp ──
+backend/output/images/*
+backend/output/reference_cache/*
+backend/output/downloads/*
+!backend/output/images/.gitkeep
+!backend/output/reference_cache/.gitkeep
+!backend/output/downloads/.gitkeep
+*.db-shm
+*.db-wal
+backend/enrichment.db
+backend/uvicorn.log
+backend/backend.log
+backend/celery.log
+backend/celerybeat-schedule
+backend/celerybeat-schedule.db
+
+# ── OS ──
+.DS_Store
+Thumbs.db
