@@ -101,7 +101,10 @@ def regenerate_asset(asset_id: str, prompt_text: str, background_tasks: Backgrou
     
     prod_name = product.get("product_identity", {}).get("product_name", sku)
     safe_prod_name = _safe_folder_name(prod_name)[:30] # Limit length
-    new_asset_name = f"{safe_prod_name}-regenerated{regen_count + 1}.png"
+    safe_group = _safe_folder_name(local_asset.variation_group)
+    import uuid
+    short_id = str(uuid.uuid4())[:8]
+    new_asset_name = f"{safe_prod_name}-{safe_group}-regen-{short_id}.png"
     
     save_path = os.path.join(folder, new_asset_name)
     
