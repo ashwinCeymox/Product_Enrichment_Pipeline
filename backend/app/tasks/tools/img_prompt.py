@@ -13,9 +13,10 @@ Output: { "lifestyle": [...], "features": [...] }
 import json
 import os
 from litellm import acompletion
+from app.config_loader import get_dynamic_env
 
 LLM_MODEL = os.getenv("LLM_MODEL", "deepseek/deepseek-chat")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+DEEPSEEK_API_KEY = get_dynamic_env("DEEPSEEK_API_KEY")
 LIFESTYLE_IMAGE_COUNT = int(os.getenv("LIFESTYLE_IMAGE_COUNT", "3"))
 
 

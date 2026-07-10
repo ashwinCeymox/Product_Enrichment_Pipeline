@@ -86,8 +86,9 @@ def process_scrape(self, task_id: str):
         img_val = image["content"] if image else ""
 
         # Here we call Litellm + DeepSeek + Serper
-        deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-        serper_key = os.getenv("SERPER_API_KEY")
+        from app.config_loader import get_dynamic_env
+        deepseek_key = get_dynamic_env("DEEPSEEK_API_KEY")
+        serper_key = get_dynamic_env("SERPER_API_KEY")
         
         product_data = {}
         if deepseek_key and deepseek_key.strip():

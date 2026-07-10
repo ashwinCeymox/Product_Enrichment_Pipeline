@@ -28,12 +28,13 @@ import re
 import ssl
 import aiohttp
 import certifi
+from app.config_loader import get_dynamic_env
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "google/gemini-2.5-flash-image")
 IMAGE_OUTPUT_DIR = os.getenv("IMAGE_OUTPUT_DIR", "output/images")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 
 
 # ─────────────────────────────────────────────────────────────
@@ -57,7 +58,8 @@ async def _generate_single_image(
     Raises ImageGenerationError on failure.
     """
 
-    if not OPENROUTER_API_KEY:
+    openrouter_api_key = get_dynamic_env("OPENROUTER_API_KEY")
+    if not openrouter_api_key:
         raise ImageGenerationError("OPENROUTER_API_KEY not configured")
 
     # ── Build message content ────────────────────────────────
@@ -101,7 +103,7 @@ async def _generate_single_image(
     }
 
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {openrouter_api_key}",
         "Content-Type":  "application/json",
     }
 
