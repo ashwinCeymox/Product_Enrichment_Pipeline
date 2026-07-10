@@ -171,7 +171,7 @@ def regenerate_asset_task(self, target_asset_id: str, reference_asset_id: str = 
         sku = product.get("product_identity", {}).get("sku", "unknown")
         
         # 2. Variant Isolation Within a Task
-        # Use ONLY the selected image as the reference, not any other image.
+        # Use ONLY the selected parent image as the reference, creating an isolated variant chain.
         ref_image_paths = []
         if reference_asset_id:
             ref_asset = db.query(ImageAsset).filter(ImageAsset.id == reference_asset_id).first()
