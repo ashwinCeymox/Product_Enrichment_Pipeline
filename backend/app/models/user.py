@@ -1,44 +1,33 @@
-"""
-User model — simple role-based auth.
-
-Two roles to start:
-  - ADMIN: full control, billing, infrastructure, credential management
-  - NORMAL: create job, downloads only — restricted from credentials/settings
-"""
-import uuid
-from datetime import datetime, timezone
-
-from sqlalchemy import Column, DateTime, JSON, String
-from passlib.context import CryptContext
-
+from sqlalchemy import Column, String, DateTime, Enum, text, Boolean
+from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
+import datetime
+import enum
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+class UserRole(str, enum.Enum):
+    user = "user"
+    admin = "admin"
+    superadmin = "superadmin"
 
-
-def _utcnow():
-    return datetime.now(timezone.utc)
-
+class UserStatus(str, enum.Enum):
+    pending = "pending"
+    verified = "verified"
+    removed = "removed"
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=False, unique=True, index=True)
-    hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False, default="NORMALUSER")  # SUPERADMIN / ADMIN / NORMALUSER
-    access_flags = Column(JSON, default=list)  # e.g. ["create_job", "downloads"]
-
-    # ── Timestamps ───────────────────────────────────
-    created_at = Column(DateTime(timezone=True), default=_utcnow)
-
-    # ── Password helpers ─────────────────────────────
-    def set_password(self, password: str):
-        self.hashed_password = pwd_context.hash(password)
-
-    def verify_password(self, password: str) -> bool:
-        return pwd_context.verify(password, self.hashed_password)
-
-    def __repr__(self):
-        return f"<User {self.email} [{self.role}]>"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=True)
+    password_hash = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    
+    role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
+    status = Column(Enum(UserStatus), default=UserStatus.pending, nullable=False)
+    is_online = Column(Boolean, default=False, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
+    last_active_at = Column(DateTime(timezone=True), nullable=True)
