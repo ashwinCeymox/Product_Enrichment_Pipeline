@@ -1,51 +1,61 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import api from '../api/client';
 
 const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for mocked user session on load
-    const storedUser = localStorage.getItem('active_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    // Check if user is logged in on mount
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await api.get('/auth/me');
+          setUser(response.data);
+        } catch (error) {
+          console.error("Auth check failed:", error);
+          localStorage.removeItem('token');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
-  const login = (role) => {
-    // Mock login based on role selected
-    let userData = { name: '', role: '', email: '' };
-    if (role === 'SUPERADMIN') {
-      userData = { name: 'Super Admin', role: 'SUPERADMIN', email: 'super@activefitness.com' };
-    } else if (role === 'ADMIN') {
-      userData = { name: 'Pipeline Admin', role: 'ADMIN', email: 'admin@activefitness.com' };
-    } else {
-      userData = { name: 'Normal User', role: 'NORMALUSER', email: 'user@activefitness.com' };
-    }
-    
+  const login = (token, userData) => {
+    localStorage.setItem('token', token);
     setUser(userData);
-    localStorage.setItem('active_user', JSON.stringify(userData));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('active_user');
+  const logout = async () => {
+    try {
+      if (localStorage.getItem('token')) {
+        await api.post('/auth/logout');
+      }
+    } catch (err) {
+      console.error('Logout API failed:', err);
+    } finally {
+      localStorage.removeItem('token');
+      setUser(null);
+    }
   };
-
-  if (loading) {
-    return <div className="h-screen w-full flex items-center justify-center bg-slate-50 text-slate-500">Loading session...</div>;
-  }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

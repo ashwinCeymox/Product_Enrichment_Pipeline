@@ -16,8 +16,13 @@ from app.schemas.dashboard import (
     RecentActivityItem,
     RecentActivityResponse,
 )
+from app.dependencies import get_current_user
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+router = APIRouter(
+    prefix="/dashboard", 
+    tags=["Dashboard"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get("/stats", response_model=DashboardStats)

@@ -13,19 +13,21 @@ import {
   ChevronRight,
   UserCircle,
   LogOut,
-  Download
+  Download,
+  Users
 } from 'lucide-react';
 import clsx from 'clsx';
 
 const ALL_NAV_ITEMS = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['SUPERADMIN', 'ADMIN', 'NORMALUSER'] },
-  { to: '/jobs/create', icon: FilePlus2, label: 'Create Job', roles: ['SUPERADMIN', 'ADMIN', 'NORMALUSER'] },
-  { to: '/approvals/json', icon: CheckSquare, label: 'JSON Review', roles: ['SUPERADMIN', 'ADMIN'] },
-  { to: '/approvals/images', icon: ImageIcon, label: 'Image Review', roles: ['SUPERADMIN', 'ADMIN'] },
-  { to: '/bundles', icon: PackageCheck, label: 'Bundle Review', roles: ['SUPERADMIN', 'ADMIN', 'NORMALUSER'] },
-  { to: '/downloads', icon: Download, label: 'Downloads', roles: ['SUPERADMIN', 'ADMIN', 'NORMALUSER'] },
-  { to: '/error-logs', icon: AlertTriangle, label: 'Error Logs', roles: ['SUPERADMIN', 'ADMIN', 'NORMALUSER'] },
-  { to: '/settings', icon: Settings, label: 'Settings', roles: ['SUPERADMIN'] },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['superadmin', 'admin', 'user'] },
+  { to: '/jobs/create', icon: FilePlus2, label: 'Create Job', roles: ['superadmin', 'admin', 'user'] },
+  { to: '/approvals/json', icon: CheckSquare, label: 'JSON Review', roles: ['superadmin', 'admin'] },
+  { to: '/approvals/images', icon: ImageIcon, label: 'Image Review', roles: ['superadmin', 'admin'] },
+  { to: '/bundles', icon: PackageCheck, label: 'Bundle Review', roles: ['superadmin', 'admin'] },
+  { to: '/downloads', icon: Download, label: 'Downloads', roles: ['superadmin', 'admin', 'user'] },
+  { to: '/error-logs', icon: AlertTriangle, label: 'Error Logs', roles: ['superadmin', 'admin'] },
+  { to: '/users', icon: Users, label: 'Users', roles: ['superadmin', 'admin'] },
+  { to: '/settings', icon: Settings, label: 'Settings', roles: ['superadmin'] },
 ];
 
 export default function Layout() {
@@ -77,8 +79,8 @@ export default function Layout() {
             <UserCircle size={24} className="text-slate-400 shrink-0" />
             {!collapsed && (
               <div className="flex flex-col overflow-hidden">
-                <span className="text-xs font-semibold text-white truncate">{user.name}</span>
-                <span className="text-[10px] text-slate-500">{user.role}</span>
+                <span className="text-xs font-semibold text-white truncate">{user.username || user.full_name || user.email}</span>
+                <span className="text-[10px] text-slate-500 uppercase">{user.role}</span>
               </div>
             )}
           </div>
@@ -101,7 +103,7 @@ export default function Layout() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
           <h1 className="text-lg font-semibold text-slate-800">Product Enrichment Pipeline</h1>
-          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full uppercase">
             {user.role} Mode
           </div>
         </header>

@@ -1,8 +1,13 @@
 import os
 import aiohttp
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.dependencies import require_superadmin
 
-router = APIRouter(prefix="/settings", tags=["Settings"])
+router = APIRouter(
+    prefix="/settings", 
+    tags=["Settings"],
+    dependencies=[Depends(require_superadmin)]
+)
 
 @router.get("/credentials", summary="Get AI Tool Credentials")
 def get_credentials():

@@ -176,75 +176,7 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 flex-1">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2 text-[15px] font-bold text-slate-800">
-            <Users size={16} className="text-blue-600" /> User Permissions &amp; Access
-          </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 border border-[#3626A7] text-[#3626A7] rounded-md text-xs font-bold hover:bg-[#3626A7] hover:text-white transition-colors">
-            <UserPlus size={14} /> Invite User
-          </button>
-        </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-[#f8f9fa] border-b border-slate-200">
-              <tr>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-1/3">User Identifier</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-1/6">Role</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex-1">Access Level</th>
-                <th className="px-5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider w-[80px] text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr className="hover:bg-slate-50/60 transition-colors">
-                <td className="px-5 py-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#eef0ff] flex items-center justify-center text-[#3626A7] font-bold text-xs border border-[#e2e8f0]">SC</div>
-                  <div>
-                    <div className="font-bold text-slate-800 text-[13px]">Sarah Chen</div>
-                    <div className="text-[11px] text-slate-500">s.chen@pipeline.io</div>
-                  </div>
-                </td>
-                <td className="px-5 py-3">
-                  <span className="bg-[#3626A7] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">ADMIN</span>
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex gap-1.5 flex-wrap">
-                    <span className="bg-[#f1f5f9] border border-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">Full Control</span>
-                    <span className="bg-[#f1f5f9] border border-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">Billing</span>
-                    <span className="bg-[#f1f5f9] border border-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">Infrastructure</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100"><MoreVertical size={16} /></button>
-                </td>
-              </tr>
-              <tr className="hover:bg-slate-50/60 transition-colors">
-                <td className="px-5 py-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#f1f5f9] flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-200">MW</div>
-                  <div>
-                    <div className="font-bold text-slate-800 text-[13px]">Marcus Wright</div>
-                    <div className="text-[11px] text-slate-500">m.wright@external.com</div>
-                  </div>
-                </td>
-                <td className="px-5 py-3">
-                  <span className="bg-white border border-slate-300 text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">NORMAL</span>
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex gap-1.5 flex-wrap">
-                    <span className="bg-[#f1f5f9] border border-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">Create Job</span>
-                    <span className="bg-[#f1f5f9] border border-slate-200 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded">Downloads</span>
-                    <span className="bg-indigo-50 border border-indigo-100 text-indigo-600 italic text-[9px] font-bold px-1.5 py-0.5 rounded">RESTRICTED</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <button className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100"><MoreVertical size={16} /></button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
       
       {/* Floating Refresh Button */}
       <button className="absolute bottom-6 right-6 bg-[#3626A7] hover:bg-blue-800 text-white rounded-lg shadow-xl px-4 py-2.5 flex items-center gap-2 font-bold text-sm transition-all transform hover:scale-105 border border-indigo-700">

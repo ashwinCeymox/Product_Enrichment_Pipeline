@@ -16,7 +16,7 @@ from app.database import Base, engine
 import app.models  # noqa: F401
 
 # Import routers
-from app.routers import health, jobs, dashboard, images, settings
+from app.routers import health, jobs, dashboard, images, settings, auth, users
 
 # ── Create tables (dev convenience — use Alembic in production) ──
 Base.metadata.create_all(bind=engine)
@@ -52,6 +52,8 @@ app.include_router(jobs.router)
 app.include_router(dashboard.router)
 app.include_router(images.router)
 app.include_router(settings.router)
+app.include_router(auth.router)
+app.include_router(users.router)
 
 
 @app.get("/", tags=["Root"])
@@ -108,9 +110,43 @@ def _recover_stuck_tasks():
         db.close()
 
 
+def _bootstrap_superadmin():
+    from app.database import SessionLocal
+    from app.models.user import User, UserRole, UserStatus
+    from app.utils.auth_utils import get_password_hash
+    from app.config_loader import get_dynamic_env
+
+    db = SessionLocal()
+    try:
+        # Check if the users table is completely empty
+        user_count = db.query(User).count()
+        if user_count == 0:
+            print("\n[bootstrap] No users found. Bootstrapping initial Superadmin account...")
+            email = get_dynamic_env("SUPERADMIN_EMAIL", "admin@pipeline.io")
+            password = get_dynamic_env("SUPERADMIN_PASSWORD", "admin123")
+            
+            new_admin = User(
+                email=email,
+                username="superadmin",
+                full_name="System Superadmin",
+                password_hash=get_password_hash(password),
+                role=UserRole.superadmin,
+                status=UserStatus.verified
+            )
+            db.add(new_admin)
+            db.commit()
+            print(f"[bootstrap] Superadmin created: {email}\n")
+    except Exception as e:
+        print(f"[bootstrap] Failed to bootstrap superadmin: {e}")
+    finally:
+        db.close()
+
 @app.on_event("startup")
-async def startup_recover_tasks():
+async def startup_events():
     """Launch recovery in a background thread so it doesn't block startup."""
     recovery_thread = threading.Thread(target=_recover_stuck_tasks, daemon=True)
     recovery_thread.start()
+    
+    # Bootstrap superadmin
+    _bootstrap_superadmin()
 

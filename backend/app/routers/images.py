@@ -7,8 +7,13 @@ from app.models.scrape_task import ScrapeTask
 from app.models.image_asset import ImageAsset
 import os
 import asyncio
+from app.dependencies import get_current_user
 
-router = APIRouter(prefix="/images", tags=["Images"])
+router = APIRouter(
+    prefix="/images", 
+    tags=["Images"],
+    dependencies=[Depends(get_current_user)]
+)
 
 @router.get("/serve", summary="Serve an image by local path")
 def serve_image(path: str):

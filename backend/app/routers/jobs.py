@@ -37,8 +37,13 @@ from app.schemas.jobs import (
     TaskPercentage,
     TaskStatus,
 )
+from app.dependencies import get_current_user
 
-router = APIRouter(prefix="/jobs", tags=["Jobs"])
+router = APIRouter(
+    prefix="/jobs", 
+    tags=["Jobs"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 # ── Celery import with fallback ──────────────────────────────────
