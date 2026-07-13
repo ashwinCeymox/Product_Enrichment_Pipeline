@@ -16,7 +16,6 @@ from litellm import acompletion
 from app.config_loader import get_dynamic_env
 
 LLM_MODEL = os.getenv("LLM_MODEL", "deepseek/deepseek-chat")
-DEEPSEEK_API_KEY = get_dynamic_env("DEEPSEEK_API_KEY")
 LIFESTYLE_IMAGE_COUNT = int(os.getenv("LIFESTYLE_IMAGE_COUNT", "3"))
 
 
@@ -330,7 +329,7 @@ async def _create_lifestyle_prompts(
                 ],
                 temperature=0.8,
                 max_tokens=400,
-                api_key=DEEPSEEK_API_KEY,
+                api_key=get_dynamic_env("DEEPSEEK_API_KEY"),
             )
             prompt = _parse_prompt(response.choices[0].message.content)
             if prompt:
@@ -392,7 +391,7 @@ async def _create_feature_prompts(
                 ],
                 temperature=0.7,
                 max_tokens=400,
-                api_key=DEEPSEEK_API_KEY,
+                api_key=get_dynamic_env("DEEPSEEK_API_KEY"),
             )
             prompt = _parse_prompt(response.choices[0].message.content)
             if prompt:

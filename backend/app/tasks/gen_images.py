@@ -79,6 +79,8 @@ async def _run_image_pipeline(job_id: str):
         
         # 2. Generate Prompts (DeepSeek)
         prompt_results = await generate_all_prompts(product)
+        if not prompt_results["lifestyle"] and not prompt_results["features"]:
+            raise Exception("Failed to generate any image prompts. Check LLM (DeepSeek) configuration and API keys.")
         
         def check_cancel():
             db.refresh(job)
