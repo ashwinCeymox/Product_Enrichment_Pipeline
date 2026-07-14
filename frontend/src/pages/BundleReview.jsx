@@ -439,7 +439,7 @@ function ActiveFitnessPreview({ productData }) {
       {/* Top Header */}
       <header className="flex items-center justify-between px-8 py-3.5 border-b border-[#e2e2e2] gap-6 sticky top-0 bg-white z-50">
         <div className="flex items-center">
-          <img src="/active_fitness_logo.png" alt="Active Fitness Store" className="h-[42px] object-contain" />
+          <img src={`${import.meta.env.BASE_URL}active_fitness_logo.png`} alt="Active Fitness Store" className="h-[42px] object-contain" />
         </div>
         <div className="hidden md:flex flex-1 max-w-[760px] items-center gap-2.5 bg-[#f7f7f7] border border-[#e2e2e2] rounded-md px-3.5 py-2.5 text-[#555555]">
           <Search size={16} />
