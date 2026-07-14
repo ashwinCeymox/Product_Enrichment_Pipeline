@@ -172,13 +172,20 @@ def regenerate_asset_task(self, target_asset_id: str, reference_asset_id: str = 
         product = job.product_data if job else {}
         sku = product.get("product_identity", {}).get("sku", "unknown")
         
-        # 2. Variant Isolation Within a Task
-        # Use ONLY the selected parent image as the reference, creating an isolated variant chain.
+        # Grab original scraped images from the reference cache to preserve the product's true features.
         ref_image_paths = []
-        if reference_asset_id:
-            ref_asset = db.query(ImageAsset).filter(ImageAsset.id == reference_asset_id).first()
-            if ref_asset and ref_asset.storage_path and os.path.exists(ref_asset.storage_path):
-                ref_image_paths = [ref_asset.storage_path]
+        job_id_str = str(job.id) if job else str(target_asset.scrape_task_id)
+        job_cache_dir = os.path.join(REFERENCE_IMAGE_CACHE, job_id_str)
+        
+        if os.path.exists(job_cache_dir):
+            for filename in os.listdir(job_cache_dir):
+                file_path = os.path.join(job_cache_dir, filename)
+                if os.path.isfile(file_path):
+                    ref_image_paths.append(file_path)
+                    
+        # Sort and limit to ensure consistent order and avoid exceeding limits
+        ref_image_paths.sort()
+        ref_image_paths = ref_image_paths[:MAX_SCRAPED_IMAGES]
             
         try:
             url, cost = asyncio.run(_generate_single_image(
