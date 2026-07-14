@@ -15,7 +15,12 @@ router = APIRouter(
     dependencies=[Depends(get_current_user)]
 )
 
-@router.get("/serve", summary="Serve an image by local path")
+public_router = APIRouter(
+    prefix="/images", 
+    tags=["Images"]
+)
+
+@public_router.get("/serve", summary="Serve an image by local path")
 def serve_image(path: str):
     if not os.path.exists(path):
         # Fallback to check if it's a relative path from the project root
