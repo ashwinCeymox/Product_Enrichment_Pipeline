@@ -128,6 +128,22 @@ def _build_jobs(
 
 # ── Routes ───────────────────────────────────────────────────────
 
+def _check_credentials():
+    from app.config_loader import get_dynamic_env
+    missing = []
+    if not get_dynamic_env("DEEPSEEK_API_KEY"):
+        missing.append("DeepSeek (LLM)")
+    if not get_dynamic_env("OPENROUTER_API_KEY"):
+        missing.append("OpenRouter (Image Generator)")
+    if not get_dynamic_env("SERPER_API_KEY"):
+        missing.append("Serper (Search API)")
+        
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"CREDENTIALS_MISSING: Your credentials are not configured ({', '.join(missing)}). Contact your administrator."
+        )
+
 @router.post(
     "",
     response_model=BatchSubmitResponse,
@@ -139,6 +155,7 @@ def create_job(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
+    _check_credentials()
     valid_urls = [str(u) for u in payload.urls]
     batch_id, jobs = _build_jobs(
         db,
@@ -179,6 +196,7 @@ async def upload_csv(
     created_by: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
+    _check_credentials()
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=415, detail="Only .csv files are accepted.")
 
