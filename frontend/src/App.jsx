@@ -18,7 +18,7 @@ import Users from './pages/Users';
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/productpipeline">
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<Login />} />

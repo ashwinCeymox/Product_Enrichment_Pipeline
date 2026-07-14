@@ -435,12 +435,12 @@ export default function ImageQueue() {
                     {/* Blurred Background to fill space */}
                     <div 
                       className="absolute inset-0 bg-cover bg-center blur-3xl opacity-50 scale-110"
-                      style={{ backgroundImage: `url(http://localhost:8000/${activeVariation.url})` }}
+                      style={{ backgroundImage: `url(${api.defaults.baseURL.replace('/api', '')}/${activeVariation.url})` }}
                     />
                     
                     {/* Actual Uncropped Image */}
                     <img 
-                      src={`http://localhost:8000/${activeVariation.url}`} 
+                      src={`${api.defaults.baseURL.replace('/api', '')}/${activeVariation.url}`} 
                       alt="Generated preview" 
                       className="relative z-0 max-h-full max-w-full rounded-lg object-contain shadow-2xl transition-transform duration-300 group-hover/img:scale-[1.02] bg-white"
                       onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }}
@@ -584,7 +584,7 @@ export default function ImageQueue() {
                 ) : (
                   <>
                     <img 
-                      src={`http://localhost:8000/${variation.url}`} 
+                      src={`${api.defaults.baseURL.replace('/api', '')}/${variation.url}`} 
                       alt="Variation" 
                       className="w-full h-full object-cover"
                       onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }}
@@ -689,7 +689,7 @@ export default function ImageQueue() {
           </button>
 
           <img 
-            src={`http://localhost:8000/${activeVariation.url}`} 
+            src={`${api.defaults.baseURL.replace('/api', '')}/${activeVariation.url}`} 
             alt="Fullscreen preview" 
             className="max-h-[90vh] max-w-[90vw] object-contain shadow-2xl rounded-sm bg-white"
             onError={(e) => { e.target.onerror = null; e.target.src = fallbackImage; }}

@@ -16,7 +16,7 @@ function get_free_port() {
     echo $port
 }
 
-WEB_PORT=$(get_free_port 80)
+WEB_PORT=8081
 API_PORT=$(get_free_port 8000)
 DB_PORT=$(get_free_port 5433)
 REDIS_PORT=$(get_free_port 6379)

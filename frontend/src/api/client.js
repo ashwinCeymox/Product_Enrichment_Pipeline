@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: '/productpipeline/api'
 });
 
 // Add a request interceptor to automatically attach the token
