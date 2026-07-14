@@ -21,6 +21,8 @@ export default function CreateJob() {
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
+  
+  const [showCredentialModal, setShowCredentialModal] = useState(false);
 
   const urlList = urls.split('\n').map(u => u.trim()).filter(Boolean);
 
@@ -72,7 +74,13 @@ export default function CreateJob() {
           errorMsg = err.response.data.detail;
         }
       }
-      setMessage(`Error: ${errorMsg}`);
+      
+      if (errorMsg.includes("CREDENTIALS_MISSING")) {
+        setShowCredentialModal(true);
+        setMessage(''); // Clear generic message
+      } else {
+        setMessage(`Error: ${errorMsg}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -142,7 +150,13 @@ export default function CreateJob() {
           errorMsg = err.response.data.detail;
         }
       }
-      setMessage(`Error: ${errorMsg}`);
+      
+      if (errorMsg.includes("CREDENTIALS_MISSING")) {
+        setShowCredentialModal(true);
+        setMessage(''); // Clear generic message
+      } else {
+        setMessage(`Error: ${errorMsg}`);
+      }
     } finally {
       setLoading(false);
       e.target.value = ''; // Reset file input
@@ -426,6 +440,28 @@ export default function CreateJob() {
           </div>
         </div>
       )}
+
+      {/* Missing Credentials Modal */}
+      {showCredentialModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col p-6 text-center">
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800 mb-2">Credentials Missing</h2>
+            <p className="text-slate-500 text-sm mb-6">
+              Your credentials are not configured. Contact your administrator to set up the required API keys.
+            </p>
+            <button
+              onClick={() => setShowCredentialModal(false)}
+              className="w-full py-2.5 bg-slate-800 text-white rounded-md font-semibold text-sm hover:bg-slate-900 transition-colors"
+            >
+              Okay, I understand
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
