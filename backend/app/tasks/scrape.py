@@ -27,7 +27,7 @@ def process_scrape(self, task_id: str):
         db.commit()
 
         import time
-        import httpx
+        from curl_cffi import requests as cffi_requests
         from bs4 import BeautifulSoup
         import json
         import os
@@ -38,28 +38,31 @@ def process_scrape(self, task_id: str):
         
         for attempt in range(max_retries):
             try:
-                with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.5",
-                        "Connection": "keep-alive",
-                        "Upgrade-Insecure-Requests": "1"
-                    }
-                    response = client.get(task.url, headers=headers)
-                    response.raise_for_status()
-                    html_content = response.text
-                    break # Success!
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
+                # Use curl_cffi to impersonate Chrome and bypass Cloudflare/Shopify bot detection
+                response = cffi_requests.get(
+                    task.url, 
+                    impersonate="chrome110",
+                    timeout=30.0,
+                    allow_redirects=True
+                )
+                
+                if response.status_code == 429:
                     if attempt < max_retries - 1:
-                        sleep_time = 10 * (attempt + 1) # Wait 10s, then 20s...
+                        sleep_time = 10 * (attempt + 1)
                         task.append_activity("scraping", f"Rate limited (429). Retrying in {sleep_time}s...")
                         db.commit()
                         time.sleep(sleep_time)
                         continue
-                # If it's not a 429, or we're out of retries, raise it
-                raise e
+                    else:
+                        response.raise_for_status()
+                
+                response.raise_for_status()
+                html_content = response.text
+                break # Success!
+            except Exception as e:
+                # If it's a 429 and we still have retries (handled above), otherwise raise
+                if attempt == max_retries - 1 or "429" not in str(e):
+                    raise e
 
         # Compress HTML using BeautifulSoup
         soup = BeautifulSoup(html_content, "html.parser")
