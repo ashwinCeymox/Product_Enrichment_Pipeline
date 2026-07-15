@@ -26,18 +26,40 @@ def process_scrape(self, task_id: str):
         task.append_activity("scraping", f"Fetching HTML from {task.url}")
         db.commit()
 
+        import time
         import httpx
         from bs4 import BeautifulSoup
         import json
         import os
 
-        # Fetch URL
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            # Using a generic user-agent
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/110.0"}
-            response = client.get(task.url, headers=headers)
-            response.raise_for_status()
-            html_content = response.text
+        # Fetch URL with retry logic for rate limits (429)
+        max_retries = 3
+        html_content = ""
+        
+        for attempt in range(max_retries):
+            try:
+                with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.5",
+                        "Connection": "keep-alive",
+                        "Upgrade-Insecure-Requests": "1"
+                    }
+                    response = client.get(task.url, headers=headers)
+                    response.raise_for_status()
+                    html_content = response.text
+                    break # Success!
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        sleep_time = 10 * (attempt + 1) # Wait 10s, then 20s...
+                        task.append_activity("scraping", f"Rate limited (429). Retrying in {sleep_time}s...")
+                        db.commit()
+                        time.sleep(sleep_time)
+                        continue
+                # If it's not a 429, or we're out of retries, raise it
+                raise e
 
         # Compress HTML using BeautifulSoup
         soup = BeautifulSoup(html_content, "html.parser")
