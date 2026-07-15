@@ -329,6 +329,11 @@ def finish_review(job_id: str, db: Session = Depends(get_db)):
     if "images" not in prod:
         prod["images"] = {}
         
+    # Sort by group name to guarantee order matches key_features index
+    # e.g. feature_1, feature_2, feature_3... and lifestyle_1, lifestyle_2...
+    lifestyle_images.sort(key=lambda x: x.get("group", ""))
+    feature_images.sort(key=lambda x: x.get("group", ""))
+    
     prod["images"]["lifestyle_images"] = lifestyle_images
     prod["images"]["feature_images"] = feature_images
     
