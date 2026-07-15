@@ -24,8 +24,13 @@ api.interceptors.response.use(
       // Clear token and force logout if unauthorized
       localStorage.removeItem('token');
       // Using window.location to avoid circular dependencies with React Router
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/eligibility' && window.location.pathname !== '/signup') {
-        window.location.href = '/login';
+      const base = import.meta.env.BASE_URL || '/';
+      const loginPath = base.endsWith('/') ? base + 'login' : base + '/login';
+      const eligibilityPath = base.endsWith('/') ? base + 'eligibility' : base + '/eligibility';
+      const signupPath = base.endsWith('/') ? base + 'signup' : base + '/signup';
+
+      if (window.location.pathname !== loginPath && window.location.pathname !== eligibilityPath && window.location.pathname !== signupPath) {
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);
