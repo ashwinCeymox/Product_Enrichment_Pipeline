@@ -28,38 +28,48 @@ def process_scrape(self, task_id: str):
 
         import time
         import httpx
+        from curl_cffi import requests as cffi_requests
         from bs4 import BeautifulSoup
         import json
         import os
+        from app.config_loader import get_dynamic_env
 
         # Fetch URL with retry logic for rate limits (429)
         max_retries = 3
         html_content = ""
         
+        # Load proxy if configured in .env (e.g. PROXY_URL="http://user:pass@proxy_host:port")
+        proxy_url = get_dynamic_env("PROXY_URL")
+        proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+        
         for attempt in range(max_retries):
             try:
-                with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-                    headers = {
-                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.5",
-                        "Connection": "keep-alive",
-                        "Upgrade-Insecure-Requests": "1"
-                    }
-                    response = client.get(task.url, headers=headers)
-                    response.raise_for_status()
-                    html_content = response.text
-                    break # Success!
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
+                # Use curl_cffi to impersonate Chrome and bypass Cloudflare/Shopify bot detection
+                response = cffi_requests.get(
+                    task.url, 
+                    impersonate="chrome110",
+                    timeout=30.0,
+                    allow_redirects=True,
+                    proxies=proxies
+                )
+                
+                if response.status_code == 429:
                     if attempt < max_retries - 1:
-                        sleep_time = 10 * (attempt + 1) # Wait 10s, then 20s...
-                        task.append_activity("scraping", f"Rate limited (429). Retrying in {sleep_time}s...")
+                        sleep_time = 10 * (attempt + 1)
+                        task.append_activity("scraping", f"Rate limited (429). Retrying in {sleep_time}s... (Proxy: {'Enabled' if proxies else 'None'})")
                         db.commit()
                         time.sleep(sleep_time)
                         continue
-                # If it's not a 429, or we're out of retries, raise it
-                raise e
+                    else:
+                        response.raise_for_status()
+                
+                response.raise_for_status()
+                html_content = response.text
+                break # Success!
+            except Exception as e:
+                # If it's a 429 and we still have retries (handled above), otherwise raise
+                if attempt == max_retries - 1 or "429" not in str(e):
+                    raise e
 
         # Compress HTML using BeautifulSoup
         soup = BeautifulSoup(html_content, "html.parser")
@@ -103,7 +113,7 @@ def process_scrape(self, task_id: str):
         description = soup.find("meta", property="og:description")
         image = soup.find("meta", property="og:image")
         
-        title_val = title["content"] if title else soup.title.string if soup.title else "Unknown Product"
+        title_val = title["content"] if title else (soup.title.string if soup.title and soup.title.string else "Unknown Product")
         desc_val = description["content"] if description else clean_text[:200] + "..."
         img_val = image["content"] if image else ""
 

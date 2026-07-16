@@ -88,7 +88,7 @@ async def _run_image_pipeline(job_id: str):
         
         def on_image_generated(group_type: str, index: int, prompt: str, img_data: dict, title: str = None):
             var_group = f"lifestyle_{index+1}" if group_type == "lifestyle" else f"feature_{index+1}"
-            asset_name = f"Lifestyle-{index+1}.png" if group_type == "lifestyle" else f"Feature-{title.replace(' ', '')}.png"
+            asset_name = f"Lifestyle-{index+1}.png" if group_type == "lifestyle" else f"Feature-{(title or f'Feature-{index+1}').replace(' ', '')}.png"
             
             # Check if an asset for this variation_group already exists (e.g. from a resumed or retried job)
             existing = db.query(ImageAsset).filter(
@@ -169,7 +169,7 @@ def regenerate_asset_task(self, target_asset_id: str, reference_asset_id: str = 
         target_asset = db.query(ImageAsset).filter(ImageAsset.id == target_asset_id).first()
         if not target_asset: return
         job = db.query(ScrapeTask).filter(ScrapeTask.id == target_asset.scrape_task_id).first()
-        product = job.product_data if job else {}
+        product = (job.product_data if job else None) or {}
         sku = product.get("product_identity", {}).get("sku", "unknown")
         
         # Grab original scraped images from the reference cache to preserve the product's true features.
