@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { Layers, Clock, CheckCircle, XCircle, AlertCircle, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
+import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -9,6 +10,30 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const navigate = useNavigate();
+
+  const handleRowClick = (item) => {
+    if (!item.task_id) return;
+    
+    switch (item.current_stage) {
+      case 'JSON_REVIEW':
+        navigate(`/approvals/json?taskId=${item.task_id}`);
+        break;
+      case 'IMAGE_REVIEW':
+        navigate(`/approvals/images?taskId=${item.task_id}`);
+        break;
+      case 'HTML_REVIEW':
+      case 'BUNDLE_REVIEW':
+      case 'COMPLETED':
+        navigate(`/bundles?taskId=${item.task_id}`);
+        break;
+      case 'FAILED':
+        navigate(`/error-logs?taskId=${item.task_id}`);
+        break;
+      default:
+        break;
+    }
+  };
 
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
@@ -113,13 +138,17 @@ export default function Dashboard() {
           <div className="bg-white">
             <div className={clsx("divide-y divide-slate-100", showAllTasks ? "max-h-[60vh] overflow-y-auto" : "")}>
               {(showAllTasks ? activity : activity.slice(0, 5)).map((item, idx) => (
-                <div key={item.job_id || idx} className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between">
-                  <div className="flex flex-col gap-1.5 max-w-[65%]">
+                <div 
+                  key={item.job_id || idx} 
+                  onClick={() => handleRowClick(item)}
+                  className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex flex-col gap-1.5 max-w-[65%] pointer-events-none">
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-slate-800 text-sm">{item.task_name}</span>
                       <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{new Date(item.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
                     </div>
-                    <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-slate-500 hover:text-blue-600 truncate transition-colors">
+                    <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-slate-500 hover:text-blue-600 truncate transition-colors pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                       {item.source_url}
                     </a>
                   </div>

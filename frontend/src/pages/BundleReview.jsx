@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import clsx from 'clsx';
-import { Search, Loader2, Check, Download, Save, Globe, ExternalLink, Maximize, Minimize } from 'lucide-react';
+import { Search, Loader2, Check, Download, Save, Globe, ExternalLink, Maximize, Minimize, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 export default function BundleReview() {
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
+  
+  const [searchParams] = useSearchParams();
+  const targetTaskId = searchParams.get('taskId');
   
   // Editor state
   const [jsonData, setJsonData] = useState('');
@@ -20,7 +24,17 @@ export default function BundleReview() {
     setLoading(true);
     try {
       const res = await api.get('/jobs/?status=success');
-      setBundles(res.data.jobs || []);
+      const fetchedBundles = res.data.jobs || [];
+      setBundles(fetchedBundles);
+      
+      if (targetTaskId && !selectedJob) {
+        const job = fetchedBundles.find(j => j.id === targetTaskId);
+        if (job) {
+          handleSelectJob(job);
+        } else {
+          alert("This task is no longer available.");
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -90,6 +104,25 @@ export default function BundleReview() {
     } catch (err) {
       console.error(err);
       alert('Failed to finalize bundle.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleRemoveBundle = async () => {
+    if (!selectedJob) return;
+    if (!window.confirm("Are you sure you want to completely remove this bundle? This action cannot be undone.")) return;
+    
+    setDownloading(true);
+    try {
+      await api.delete(`/jobs/${selectedJob.id}`);
+      
+      const newBundles = bundles.filter(b => b.id !== selectedJob.id);
+      setBundles(newBundles);
+      setSelectedJob(null);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to remove bundle.');
     } finally {
       setDownloading(false);
     }
@@ -191,6 +224,14 @@ export default function BundleReview() {
               >
                 {downloading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 FINALIZE AND SAVE
+              </button>
+              <button
+                onClick={handleRemoveBundle}
+                disabled={saving || downloading}
+                className="w-full py-2 px-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-md text-xs font-semibold hover:bg-rose-100 transition-colors flex justify-center items-center gap-2 mt-2"
+              >
+                <Trash2 size={14} />
+                REMOVE BUNDLE
               </button>
             </div>
           </div>
