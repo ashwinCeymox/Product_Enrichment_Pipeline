@@ -55,6 +55,22 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     )
 
 
+def get_task_stage_and_status(status: str):
+    if status == 'waiting_for_approval':
+        return 'JSON_REVIEW', 'PENDING_APPROVAL'
+    elif status in ['image_generation', 'image_generation_stopped', 'image_generation_complete', 'image_generation_failed']:
+        return 'IMAGE_REVIEW', 'PENDING_APPROVAL'
+    elif status == 'html_generation':
+        return 'HTML_REVIEW', 'PENDING_APPROVAL'
+    elif status == 'bundle_generation':
+        return 'BUNDLE_REVIEW', 'PENDING_APPROVAL'
+    elif status in ['success', 'completed']:
+        return 'COMPLETED', 'SUCCESS'
+    elif status in ['failed', 'aborted']:
+        return 'FAILED', 'ERROR'
+    else:
+        return 'PROCESSING', 'IN_PROGRESS'
+
 @router.get("/recent-activity", response_model=RecentActivityResponse)
 def get_recent_activity(limit: int = 20, db: Session = Depends(get_db)):
     tasks = (
@@ -63,18 +79,21 @@ def get_recent_activity(limit: int = 20, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
-    items = [
-        RecentActivityItem(
+    items = []
+    for t in tasks:
+        stage, current_status = get_task_stage_and_status(t.status)
+        items.append(RecentActivityItem(
             job_id=t.id,
+            task_id=t.id,
             task_name=t.task_name,
             source_url=t.url,
             status=t.status,
+            current_stage=stage,
+            current_status=current_status,
             progress=t.progress or 0,
             created_at=t.created_at,
             error_message=t.error_message,
-        )
-        for t in tasks
-    ]
+        ))
     return RecentActivityResponse(items=items)
 
 @router.get("/error-logs", response_model=RecentActivityResponse)
@@ -86,16 +105,19 @@ def get_error_logs(limit: int = 100, db: Session = Depends(get_db)):
         .limit(limit)
         .all()
     )
-    items = [
-        RecentActivityItem(
+    items = []
+    for t in tasks:
+        stage, current_status = get_task_stage_and_status(t.status)
+        items.append(RecentActivityItem(
             job_id=t.id,
+            task_id=t.id,
             task_name=t.task_name,
             source_url=t.url,
             status=t.status,
+            current_stage=stage,
+            current_status=current_status,
             progress=t.progress or 0,
             created_at=t.created_at,
             error_message=t.error_message,
-        )
-        for t in tasks
-    ]
+        ))
     return RecentActivityResponse(items=items)

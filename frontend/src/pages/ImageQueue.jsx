@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, CheckCircle, RefreshCcw, Rocket, Layers, UploadCloud, Loader2, StopCircle, PlayCircle, Folder, FolderOpen, Maximize2, Minimize2, Trash2, ChevronLeft, ChevronRight, X, XCircle, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import api from '../api/client';
+import { useSearchParams } from 'react-router-dom';
 
 const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><rect width="400" height="400" fill="%23f1f5f9"/><text x="200" y="200" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle" dominant-baseline="middle">Failed to load</text></svg>`;
 
@@ -26,6 +27,9 @@ export default function ImageQueue() {
   const [showDeleteJobModal, setShowDeleteJobModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
 
+  const [searchParams] = useSearchParams();
+  const targetTaskId = searchParams.get('taskId');
+
   useEffect(() => {
     fetchQueue();
     const interval = setInterval(fetchQueue, 3000);
@@ -35,15 +39,28 @@ export default function ImageQueue() {
   // Handle default selection when queue loads or changes
   useEffect(() => {
     if (queue.length > 0 && !hasInitialSelection) {
-      const firstJob = queue[0];
-      setActiveJobId(firstJob.job_id);
-      if (firstJob.assets && firstJob.assets.length > 0 && !activeAssetGroup) {
-        setActiveAssetGroup(firstJob.assets[0].variation_group);
-        setSelectedVariationId(null);
+      if (targetTaskId) {
+        const job = queue.find(j => j.job_id === targetTaskId);
+        if (job) {
+          setActiveJobId(job.job_id);
+          if (job.assets && job.assets.length > 0 && !activeAssetGroup) {
+            setActiveAssetGroup(job.assets[0].variation_group);
+            setSelectedVariationId(null);
+          }
+        } else {
+          alert("This task is no longer available.");
+        }
+      } else {
+        const firstJob = queue[0];
+        setActiveJobId(firstJob.job_id);
+        if (firstJob.assets && firstJob.assets.length > 0 && !activeAssetGroup) {
+          setActiveAssetGroup(firstJob.assets[0].variation_group);
+          setSelectedVariationId(null);
+        }
       }
       setHasInitialSelection(true);
     }
-  }, [queue, hasInitialSelection, activeAssetGroup]);
+  }, [queue, hasInitialSelection, activeAssetGroup, targetTaskId]);
 
 
 

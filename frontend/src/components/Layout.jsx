@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
@@ -33,8 +34,50 @@ const ALL_NAV_ITEMS = [
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [errorLogs, setErrorLogs] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchData = async () => {
+      try {
+        const [statsRes, errorRes] = await Promise.all([
+          api.get('/dashboard/stats'),
+          api.get('/dashboard/error-logs?limit=50')
+        ]);
+        setStats(statsRes.data);
+        setErrorLogs(errorRes.data.items || []);
+      } catch (err) {
+        console.error('Failed to fetch sidebar data', err);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    
+    const handleClear = () => fetchData();
+    window.addEventListener('errorLogsCleared', handleClear);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('errorLogsCleared', handleClear);
+    };
+  }, [user]);
 
   const navItems = ALL_NAV_ITEMS.filter(item => item.roles.includes(user.role));
+
+  const getBadgeCount = (path) => {
+    if (!stats) return 0;
+    switch (path) {
+      case '/approvals/json': return stats.approval_breakdown?.json_count || 0;
+      case '/approvals/images': return stats.approval_breakdown?.image_count || 0;
+      case '/bundles': return stats.approval_breakdown?.html_count || 0;
+      case '/error-logs': {
+        const clearedTimestamp = parseInt(localStorage.getItem('clearedErrorsTimestamp') || '0', 10);
+        return errorLogs.filter(log => new Date(log.created_at).getTime() > clearedTimestamp).length;
+      }
+      default: return 0;
+    }
+  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">
@@ -61,15 +104,33 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) => clsx(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
+                "flex items-center justify-between px-3 py-2 rounded-md transition-colors text-sm font-medium relative",
                 isActive 
                   ? "bg-primary text-white" 
                   : "hover:bg-slate-800 hover:text-white"
               )}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon size={18} className="shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <div className="flex items-center gap-3">
+                <item.icon size={18} className="shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </div>
+              
+              {getBadgeCount(item.to) > 0 && (
+                collapsed ? (
+                  <span className={clsx(
+                    "absolute top-2 right-2 w-2 h-2 rounded-full",
+                    item.to === '/error-logs' ? "bg-rose-500" : "bg-blue-500"
+                  )} />
+                ) : (
+                  <span className={clsx(
+                    "px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[20px] text-center",
+                    item.to === '/error-logs' ? "bg-rose-500 text-white" : "bg-blue-500 text-white"
+                  )}>
+                    {getBadgeCount(item.to) > 99 ? '99+' : getBadgeCount(item.to)}
+                  </span>
+                )
+              )}
             </NavLink>
           ))}
         </nav>

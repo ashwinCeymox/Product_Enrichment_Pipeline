@@ -385,7 +385,7 @@ def delete_asset(asset_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Asset not found")
     
     # Optionally remove file from disk
-    if asset.storage_path and os.path.exists(asset.storage_path):
+    if os.path.exists(asset.storage_path):
         try:
             os.remove(asset.storage_path)
         except Exception:

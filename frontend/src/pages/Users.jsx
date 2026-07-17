@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
-import { MoreVertical, UserPlus, Filter, Search, X } from 'lucide-react';
+import { MoreVertical, UserPlus, Filter, Search, X, AlertTriangle } from 'lucide-react';
 
 export default function Users() {
   const { user: currentUser } = useAuth();
@@ -238,65 +238,86 @@ export default function Users() {
 
       {/* Invite Modal */}
       {isInviteModalOpen && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 w-full max-w-md shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-white">Invite User</h2>
-              <button onClick={() => setIsInviteModalOpen(false)} className="text-slate-400 hover:text-white">
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-cyan-50 rounded-full flex items-center justify-center border border-cyan-100 shrink-0 shadow-sm">
+                  <UserPlus className="text-cyan-600" size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Invite User</h2>
+                  <p className="text-sm text-slate-500 mt-1 leading-snug">Send an invitation email to add a new team member.</p>
+                </div>
+              </div>
+              <button onClick={() => setIsInviteModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-100 rounded-full">
                 <X size={20} />
               </button>
             </div>
             
-            {inviteError && <div className="mb-4 text-sm text-red-400 bg-red-400/10 p-3 rounded">{inviteError}</div>}
-            
-            <form onSubmit={handleInvite} className="space-y-4">
-              <div>
-                <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2">Email Address</label>
-                <input 
-                  type="email" 
-                  required
-                  value={inviteEmail}
-                  onChange={e => setInviteEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
-                />
+            {inviteError && (
+              <div className="mb-6 text-sm text-rose-700 bg-rose-50 border border-rose-200 p-3.5 rounded-xl flex items-center gap-2 shadow-sm font-medium">
+                <AlertTriangle size={18} className="shrink-0 text-rose-500" /> 
+                {inviteError}
               </div>
-              
+            )}
+            
+            <form onSubmit={handleInvite} className="space-y-6">
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-400 tracking-wider mb-2">Assign Role</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div 
-                    onClick={() => setInviteRole('user')}
-                    className={`border rounded p-3 cursor-pointer transition-colors ${inviteRole === 'user' ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
-                  >
-                    <div className="text-sm font-medium text-white">Normal User</div>
-                    <div className="text-xs text-slate-500 mt-1">Standard access</div>
-                  </div>
-                  
-                  <div 
-                    onClick={() => setInviteRole('admin')}
-                    className={`border rounded p-3 cursor-pointer transition-colors ${inviteRole === 'admin' ? 'border-cyan-500 bg-cyan-500/10' : 'border-slate-700 bg-slate-900 hover:border-slate-500'}`}
-                  >
-                    <div className="text-sm font-medium text-white">Administrator</div>
-                    <div className="text-xs text-slate-500 mt-1">Management access</div>
-                  </div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+                <div className="relative">
+                  <input 
+                    type="email" 
+                    required
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 focus:bg-white transition-all shadow-sm"
+                  />
                 </div>
               </div>
               
-              <div className="pt-4 flex gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Assign Role</label>
+                <div className={`grid gap-4 ${currentUser.role === 'superadmin' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  <div 
+                    onClick={() => setInviteRole('user')}
+                    className={`border rounded-xl p-4 cursor-pointer transition-all ${inviteRole === 'user' ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 shadow-sm'}`}
+                  >
+                    <div className={`text-sm font-bold ${inviteRole === 'user' ? 'text-cyan-800' : 'text-slate-700'}`}>Normal User</div>
+                    <div className="text-xs text-slate-500 mt-1 font-medium">Standard access</div>
+                  </div>
+                  
+                  {currentUser.role === 'superadmin' && (
+                    <div 
+                      onClick={() => setInviteRole('admin')}
+                      className={`border rounded-xl p-4 cursor-pointer transition-all ${inviteRole === 'admin' ? 'border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 shadow-sm'}`}
+                    >
+                      <div className={`text-sm font-bold ${inviteRole === 'admin' ? 'text-cyan-800' : 'text-slate-700'}`}>Administrator</div>
+                      <div className="text-xs text-slate-500 mt-1 font-medium">Management access</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="pt-2 flex gap-3">
                 <button 
                   type="button" 
                   onClick={() => setIsInviteModalOpen(false)}
-                  className="flex-1 py-2 rounded text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="flex-1 py-3 rounded-xl text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-800 font-bold transition-colors shadow-sm"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={inviteLoading}
-                  className="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {inviteLoading ? 'Sending...' : 'Send Invite'}
+                  {inviteLoading ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Sending...</>
+                  ) : (
+                    'Send Invite'
+                  )}
                 </button>
               </div>
             </form>

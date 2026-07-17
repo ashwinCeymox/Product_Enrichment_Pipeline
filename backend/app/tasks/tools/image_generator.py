@@ -437,8 +437,6 @@ async def generate_product_images(
 
 def _safe_folder_name(text: str) -> str:
     """Converts any string into a safe folder/file name."""
-    if not text:
-        return "UNKNOWN"
-    safe = re.sub(r'[^\w\-]', '-', str(text).upper())
+    safe = re.sub(r'[^\w\-]', '-', text.upper())
     safe = re.sub(r'-+', '-', safe).strip('-')
     return safe[:60]
