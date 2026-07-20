@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/client';
 import { Search, Loader2, Download as DownloadIcon, Calendar, FilterX } from 'lucide-react';
 import clsx from 'clsx';
+import { DownloadsTableSkeleton } from '../components/Shimmer';
 
 export default function Downloads() {
   const [bundles, setBundles] = useState([]);
@@ -120,10 +121,7 @@ export default function Downloads() {
       {/* Table Area */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500">
-            <Loader2 className="animate-spin mb-4" size={32} />
-            <p>Loading available downloads...</p>
-          </div>
+          <DownloadsTableSkeleton rows={4} />
         ) : filteredBundles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-500">
             <div className="text-4xl mb-3">📁</div>

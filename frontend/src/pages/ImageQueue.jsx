@@ -3,6 +3,7 @@ import { Image as ImageIcon, CheckCircle, RefreshCcw, Rocket, Layers, UploadClou
 import clsx from 'clsx';
 import api from '../api/client';
 import { useSearchParams } from 'react-router-dom';
+import { ImageQueueSkeleton } from '../components/Shimmer';
 
 const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><rect width="400" height="400" fill="%23f1f5f9"/><text x="200" y="200" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle" dominant-baseline="middle">Failed to load</text></svg>`;
 
@@ -231,11 +232,7 @@ export default function ImageQueue() {
   };
 
   if (loading) {
-    return (
-      <div className="h-[calc(100vh-6rem)] flex items-center justify-center">
-        <Loader2 className="animate-spin text-primary" size={32} />
-      </div>
-    );
+    return <ImageQueueSkeleton />;
   }
 
   if (queue.length === 0) {

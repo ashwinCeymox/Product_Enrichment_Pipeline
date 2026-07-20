@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import { UploadCloud, Play, Calendar, AlertCircle, Loader2, Clock, CheckCircle2, XCircle, X } from 'lucide-react';
 import clsx from 'clsx';
+import { QueueSidebarSkeleton } from '../components/Shimmer';
 
 export default function CreateJob() {
   const [taskName, setTaskName] = useState('');
@@ -324,9 +325,7 @@ export default function CreateJob() {
             
             <div className="p-4 flex-1 overflow-y-auto">
               {queueLoading ? (
-                <div className="flex justify-center items-center h-32">
-                  <Loader2 className="animate-spin text-slate-400" size={24} />
-                </div>
+                <QueueSidebarSkeleton items={5} />
               ) : queue.length === 0 ? (
                 <div className="text-center text-slate-500 py-8 text-sm flex flex-col items-center">
                   <AlertCircle size={32} className="text-slate-300 mb-3" />

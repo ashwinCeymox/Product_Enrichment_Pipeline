@@ -3,6 +3,7 @@ import api from '../api/client';
 import { Layers, Clock, CheckCircle, XCircle, AlertCircle, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
+import { DashboardSkeleton } from '../components/Shimmer';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -67,11 +68,7 @@ export default function Dashboard() {
   };
 
   if (loading && !stats) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-6rem)]">
-        <RefreshCcw className="animate-spin text-slate-400" size={32} />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

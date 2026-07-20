@@ -3,6 +3,7 @@ import api from '../api/client';
 import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Clock, ServerCrash, XCircle, CheckCircle2, Trash2, Calendar, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
+import { ErrorLogsSkeleton } from '../components/Shimmer';
 
 export default function ErrorLogs() {
   const [logs, setLogs] = useState([]);
@@ -105,11 +106,7 @@ export default function ErrorLogs() {
   };
 
   if (loading && logs.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-6rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <ErrorLogsSkeleton />;
   }
 
   return (
