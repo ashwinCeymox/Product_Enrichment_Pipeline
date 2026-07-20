@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import { MoreVertical, UserPlus, Filter, Search, X, AlertTriangle } from 'lucide-react';
+import { UsersTableSkeleton } from '../components/Shimmer';
 
 export default function Users() {
   const { user: currentUser } = useAuth();
@@ -124,7 +125,7 @@ export default function Users() {
 
       <div className="flex-1 overflow-auto bg-white border border-slate-200 rounded-xl shadow-sm">
         {loading ? (
-          <div className="p-8 text-center text-slate-500">Loading directory...</div>
+          <UsersTableSkeleton rows={5} />
         ) : error ? (
           <div className="p-8 text-center text-red-500">{error}</div>
         ) : (

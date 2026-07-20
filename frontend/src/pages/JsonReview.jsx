@@ -9,6 +9,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { Check, X, FileJson, Loader2, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
+import { TableSkeleton } from '../components/Shimmer';
 
 export default function JsonReview() {
   const [data, setData] = useState([]);
@@ -170,12 +171,7 @@ export default function JsonReview() {
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
               {loading && data.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                    <Loader2 className="animate-spin mx-auto mb-2 text-slate-400" size={24} />
-                    Loading queue...
-                  </td>
-                </tr>
+                <TableSkeleton columns={6} rows={4} />
               ) : data.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
