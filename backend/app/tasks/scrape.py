@@ -26,18 +26,43 @@ def process_scrape(self, task_id: str):
         task.append_activity("scraping", f"Fetching HTML from {task.url}")
         db.commit()
 
-        import httpx
+        import time
+        from curl_cffi import requests as cffi_requests
         from bs4 import BeautifulSoup
         import json
         import os
 
-        # Fetch URL
-        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            # Using a generic user-agent
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/110.0"}
-            response = client.get(task.url, headers=headers)
-            response.raise_for_status()
-            html_content = response.text
+        # Fetch URL with retry logic for rate limits (429)
+        max_retries = 3
+        html_content = ""
+        
+        for attempt in range(max_retries):
+            try:
+                # Use curl_cffi to impersonate Chrome and bypass Cloudflare/Shopify bot detection
+                response = cffi_requests.get(
+                    task.url, 
+                    impersonate="chrome110",
+                    timeout=30.0,
+                    allow_redirects=True
+                )
+                
+                if response.status_code == 429:
+                    if attempt < max_retries - 1:
+                        sleep_time = 10 * (attempt + 1)
+                        task.append_activity("scraping", f"Rate limited (429). Retrying in {sleep_time}s...")
+                        db.commit()
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        response.raise_for_status()
+                
+                response.raise_for_status()
+                html_content = response.text
+                break # Success!
+            except Exception as e:
+                # If it's a 429 and we still have retries (handled above), otherwise raise
+                if attempt == max_retries - 1 or "429" not in str(e):
+                    raise e
 
         # Compress HTML using BeautifulSoup
         soup = BeautifulSoup(html_content, "html.parser")

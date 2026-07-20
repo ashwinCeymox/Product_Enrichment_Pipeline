@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { useSearchParams } from 'react-router-dom';
 import { Check, X, FileJson, Loader2, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -16,12 +17,24 @@ export default function JsonReview() {
   const [jsonData, setJsonData] = useState('');
   const [activeTab, setActiveTab] = useState('table');
   const [saving, setSaving] = useState(false);
+  const [searchParams] = useSearchParams();
+  const targetTaskId = searchParams.get('taskId');
 
   const fetchJobs = async () => {
     setLoading(true);
     try {
       const res = await api.get('/jobs/?status=waiting_for_approval');
-      setData(res.data.jobs || []);
+      const fetchedJobs = res.data.jobs || [];
+      setData(fetchedJobs);
+      
+      if (targetTaskId && !selectedJob) {
+        const job = fetchedJobs.find(j => j.id === targetTaskId);
+        if (job) {
+          handleReview(job);
+        } else {
+          alert("This task is no longer available.");
+        }
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -73,14 +86,37 @@ export default function JsonReview() {
 
   const columnHelper = createColumnHelper();
   const columns = [
+    columnHelper.display({
+      id: 'index',
+      header: 'No.',
+      cell: (info) => <span className="text-slate-400 font-medium">{info.row.index + 1}</span>,
+    }),
     columnHelper.accessor('task_name', { header: 'Task Name' }),
+    columnHelper.accessor(row => {
+      let data = row.product_data || {};
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (e) {
+          data = {};
+        }
+      }
+      
+      const identity = data.product_identity || {};
+      
+      return identity.product_name || identity.title || identity.name || data.title || data.name || data.product_name || data['Product Name'] || 'Data not available';
+    }, { 
+      id: 'product_name',
+      header: 'Product Name',
+      cell: info => <div className="max-w-xs truncate font-medium text-slate-700" title={info.getValue()}>{info.getValue()}</div>
+    }),
     columnHelper.accessor('url', { 
       header: 'Source URL',
-      cell: info => <div className="max-w-xs truncate" title={info.getValue()}>{info.getValue()}</div> 
+      cell: info => <div className="max-w-[200px] truncate text-xs text-slate-500" title={info.getValue()}><a href={info.getValue()} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">{info.getValue()}</a></div> 
     }),
     columnHelper.accessor('created_at', { 
       header: 'Date',
-      cell: info => new Date(info.getValue()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+      cell: info => <span className="text-slate-500 whitespace-nowrap">{new Date(info.getValue()).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
     }),
     columnHelper.display({
       id: 'actions',
@@ -224,6 +260,84 @@ export default function JsonReview() {
                         </div>
                       );
                     }
+
+                    const updateJsonPath = (path, value) => {
+                      try {
+                        const newParsed = JSON.parse(jsonData);
+                        let current = newParsed;
+                        for (let i = 0; i < path.length - 1; i++) {
+                          current = current[path[i]];
+                        }
+                        current[path[path.length - 1]] = value;
+                        setJsonData(JSON.stringify(newParsed, null, 2));
+                      } catch (e) {
+                        console.error(e);
+                      }
+                    };
+
+                    const renderRecursiveEditor = (data, path = []) => {
+                      if (data === null) {
+                        return (
+                          <input 
+                            className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border bg-white focus:outline-none"
+                            value=""
+                            placeholder="null"
+                            onChange={(e) => updateJsonPath(path, e.target.value)}
+                          />
+                        );
+                      }
+
+                      if (Array.isArray(data)) {
+                        return (
+                          <div className="flex flex-col gap-3 pl-4 border-l-2 border-indigo-200 mt-1 mb-2">
+                            {data.map((item, idx) => (
+                              <div key={idx} className="flex gap-3 items-start bg-slate-50/50 p-2 rounded border border-slate-100">
+                                <span className="text-[10px] font-bold text-slate-400 mt-2 w-4 shrink-0">{idx + 1}.</span>
+                                <div className="flex-1">
+                                  {renderRecursiveEditor(item, [...path, idx])}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      if (typeof data === 'object') {
+                        return (
+                          <div className="flex flex-col gap-4 pl-4 border-l-2 border-slate-200 mt-2 mb-3 w-full">
+                            {Object.entries(data).map(([key, val]) => (
+                              <div key={key} className="flex flex-col gap-1.5">
+                                <label className="text-xs font-bold text-slate-600 tracking-wide uppercase">{key.replace(/_/g, ' ')}</label>
+                                {renderRecursiveEditor(val, [...path, key])}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      // Primitive (string, number, boolean)
+                      return (
+                        <textarea 
+                          value={data}
+                          rows={String(data).length > 80 ? 3 : 1}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (typeof data === 'number') val = Number(val) || 0;
+                            if (typeof data === 'boolean') val = val === 'true';
+                            updateJsonPath(path, val);
+                          }}
+                          className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border bg-white focus:outline-none transition-shadow"
+                        />
+                      );
+                    };
+
+                    if (Object.keys(parsed).length === 0) {
+                      return (
+                        <div className="flex items-center justify-center h-full text-red-500 text-sm">
+                          Invalid JSON format. Please fix in the Raw JSON tab first.
+                        </div>
+                      );
+                    }
                     
                     const keys = Object.keys(parsed);
                     if (keys.length === 0) {
@@ -236,45 +350,18 @@ export default function JsonReview() {
                     }
 
                     return (
-                      <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50 sticky top-0">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-1/3">Key</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-2/3">Value</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                          {keys.map(key => {
-                            const val = parsed[key];
-                            const isStringOrNumber = typeof val === 'string' || typeof val === 'number';
-                            return (
-                              <tr key={key} className="hover:bg-slate-50">
-                                <td className="px-4 py-3 text-sm font-medium text-slate-700 align-top">
-                                  {key}
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                  {isStringOrNumber ? (
-                                    <textarea 
-                                      value={val}
-                                      rows={String(val).length > 60 ? 3 : 1}
-                                      onChange={(e) => {
-                                        const newParsed = { ...parsed, [key]: e.target.value };
-                                        setJsonData(JSON.stringify(newParsed, null, 2));
-                                      }}
-                                      className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-1.5 border bg-white overflow-auto"
-                                    />
-                                  ) : (
-                                    <div className="text-sm text-slate-500 italic bg-slate-100 p-1.5 rounded border border-slate-200">
-                                      {JSON.stringify(val)}
-                                      <span className="block text-xs mt-1 text-slate-400">(Nested object/array - edit in Raw JSON tab)</span>
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                      <div className="p-6">
+                        {Object.entries(parsed).map(([key, val]) => (
+                          <div key={key} className="mb-6 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                            <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
+                              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{key.replace(/_/g, ' ')}</h4>
+                            </div>
+                            <div className="p-4">
+                              {renderRecursiveEditor(val, [key])}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     );
                   })()}
                 </div>
