@@ -134,6 +134,7 @@ export default function Downloads() {
               <tr>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">Task Name</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">Product Info</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">Reviewed By</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">Approved Date</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 text-right">Action</th>
               </tr>
@@ -153,6 +154,16 @@ export default function Downloads() {
                     <td className="px-6 py-4">
                       <div className="text-sm text-slate-700 font-medium">{prodName}</div>
                       <div className="text-xs text-slate-500 mt-0.5">{brand}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0 border border-indigo-200">
+                          {(job.result_zip_file?.approved_by || "System").substring(0, 2).toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-slate-700 truncate max-w-[120px]">
+                          {job.result_zip_file?.approved_by || "System"}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-slate-600">
