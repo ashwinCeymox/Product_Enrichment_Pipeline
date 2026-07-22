@@ -140,7 +140,7 @@ export default function JsonReview() {
   });
 
   return (
-    <div className="mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-slate-800">JSON Approval Queue</h2>

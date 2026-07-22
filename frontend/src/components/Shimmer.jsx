@@ -100,7 +100,7 @@ export function SidebarListSkeleton({ items = 4 }) {
 /* ─── Error Logs Skeleton ────────────────────────────────────────── */
 export function ErrorLogsSkeleton({ items = 3 }) {
   return (
-    <div className="mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
