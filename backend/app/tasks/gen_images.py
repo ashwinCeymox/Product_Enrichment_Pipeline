@@ -85,6 +85,17 @@ async def _run_image_pipeline(job_id: str):
         def check_cancel():
             db.refresh(job)
             return job.status in ["image_generation_stopped", "success", "aborted", "waiting_for_approval", "failed"]
+            
+        # Identify existing valid base images to skip regenerating them
+        existing_assets = db.query(ImageAsset).filter(
+            ImageAsset.scrape_task_id == job.id,
+            ~ImageAsset.asset_name.like("%-regenerated%")
+        ).all()
+        existing_groups = {a.variation_group for a in existing_assets if a.status in ["success", "approved", "pending"]}
+        
+        def should_skip(group_type: str, index: int) -> bool:
+            var_group = f"lifestyle_{index+1}" if group_type == "lifestyle" else f"feature_{index+1}"
+            return var_group in existing_groups
         
         def on_image_generated(group_type: str, index: int, prompt: str, img_data: dict, title: str = None):
             var_group = f"lifestyle_{index+1}" if group_type == "lifestyle" else f"feature_{index+1}"
@@ -121,7 +132,8 @@ async def _run_image_pipeline(job_id: str):
             product_sku=sku,
             reference_image_paths=ref_image_paths,
             check_cancel_cb=check_cancel,
-            on_image_generated_cb=on_image_generated
+            on_image_generated_cb=on_image_generated,
+            should_skip_cb=should_skip
         )
         
         db.refresh(job)

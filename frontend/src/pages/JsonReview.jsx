@@ -7,7 +7,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router-dom';
-import { Check, X, FileJson, Loader2, RefreshCw } from 'lucide-react';
+import { Check, X, FileJson, Loader2, RefreshCw, ChevronLeft } from 'lucide-react';
 import clsx from 'clsx';
 import { TableSkeleton } from '../components/Shimmer';
 
@@ -92,7 +92,24 @@ export default function JsonReview() {
       header: 'No.',
       cell: (info) => <span className="text-slate-400 font-medium">{info.row.index + 1}</span>,
     }),
-    columnHelper.accessor('task_name', { header: 'Task Name' }),
+    columnHelper.accessor('task_name', { 
+      header: 'Task Name',
+      cell: info => {
+        const isAborted = ['aborted', 'failed'].includes(info.row.original.status);
+        return (
+          <div className="flex items-center gap-2">
+            <span className={clsx("font-medium", isAborted ? "text-slate-400 line-through" : "text-slate-700")}>
+              {info.getValue()}
+            </span>
+            {isAborted && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold tracking-wider rounded bg-rose-100 text-rose-700 border border-rose-200 uppercase">
+                ABORTED
+              </span>
+            )}
+          </div>
+        );
+      }
+    }),
     columnHelper.accessor(row => {
       let data = row.product_data || {};
       if (typeof data === 'string') {
@@ -196,17 +213,26 @@ export default function JsonReview() {
 
       {/* Editor Modal */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl flex flex-col max-h-full overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-6 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white md:rounded-xl shadow-2xl w-full max-w-6xl flex flex-col h-full md:h-auto md:max-h-[90vh] overflow-hidden">
             <div className="px-6 pt-4 border-b border-slate-200 bg-slate-50">
               <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">Review Extraction Data</h3>
-                  <p className="text-sm text-slate-500 max-w-lg truncate">{selectedJob.task_name} — {selectedJob.url}</p>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setSelectedJob(null)}
+                    className="md:hidden text-slate-500 hover:text-slate-700 p-1 -ml-1 flex-shrink-0"
+                    disabled={saving}
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold text-slate-800">Review Extraction Data</h3>
+                    <p className="text-sm text-slate-500 truncate">{selectedJob.task_name} — {selectedJob.url}</p>
+                  </div>
                 </div>
                 <button 
                   onClick={() => setSelectedJob(null)} 
-                  className="text-slate-400 hover:text-slate-600 p-1"
+                  className="hidden md:block text-slate-400 hover:text-slate-600 p-1 flex-shrink-0"
                   disabled={saving}
                 >
                   <X size={20} />

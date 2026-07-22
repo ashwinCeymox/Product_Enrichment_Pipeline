@@ -292,6 +292,7 @@ async def generate_product_images(
     reference_image_paths: list[str] | None = None,
     check_cancel_cb=None,
     on_image_generated_cb=None,
+    should_skip_cb=None,
 ) -> dict:
     """
     Generates all lifestyle + feature images for one product.
@@ -339,6 +340,10 @@ async def generate_product_images(
             print("[image_gen] 🛑 Cancellation requested during lifestyle images")
             break
 
+        if should_skip_cb and should_skip_cb("lifestyle", i):
+            print(f"  [image_gen] ⏭️ Skipping lifestyle {i+1} (already exists)")
+            continue
+
         save_path = os.path.join(folder, f"lifestyle_{i+1}.png")
 
         print(f"\n  [image_gen] lifestyle {i+1}/{len(lifestyle_prompts)}")
@@ -377,6 +382,10 @@ async def generate_product_images(
         if check_cancel_cb and check_cancel_cb():
             print("[image_gen] 🛑 Cancellation requested during feature images")
             break
+
+        if should_skip_cb and should_skip_cb("feature", i):
+            print(f"  [image_gen] ⏭️ Skipping feature {i+1} (already exists)")
+            continue
 
         title       = feat.get("title", f"feature_{i+1}")
         prompt      = feat.get("prompt", "")

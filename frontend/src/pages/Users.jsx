@@ -79,20 +79,20 @@ export default function Users() {
 
   return (
     <div className="p-8 h-full bg-slate-50 text-slate-600 flex flex-col relative">
-      <div className="flex justify-between items-center mb-8 shrink-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">User Directory</h1>
           <p className="text-sm text-slate-500">Manage access control and system permissions for all platform personnel.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input 
               type="text" 
               placeholder="Search users by name, email or role..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-white border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-900 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 w-80 shadow-sm"
+              className="bg-white border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-900 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 w-full sm:w-80 shadow-sm"
             />
           </div>
           {currentUser.role === 'superadmin' && (
@@ -115,10 +115,11 @@ export default function Users() {
           )}
           <button 
             onClick={() => setIsInviteModalOpen(true)}
-            className="flex items-center justify-center w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors shadow-sm"
+            className="flex items-center justify-center w-full sm:w-10 h-10 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors shadow-sm gap-2 sm:gap-0 font-medium sm:font-normal"
             title="Invite User"
           >
             <UserPlus size={18} />
+            <span className="sm:hidden">Invite User</span>
           </button>
         </div>
       </div>
@@ -129,7 +130,7 @@ export default function Users() {
         ) : error ? (
           <div className="p-8 text-center text-red-500">{error}</div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="px-6 py-4">User Identifier</th>
@@ -147,11 +148,11 @@ export default function Users() {
                   : u.email.substring(0, 2).toUpperCase();
                 
                 // Presence dot using is_online from DB
-                let presenceText = 'Offline';
+                let presenceText = 'Inactive';
                 let presenceColor = 'bg-slate-500';
                 
                 if (u.is_online) {
-                  presenceText = 'Online';
+                  presenceText = 'Active';
                   presenceColor = 'bg-emerald-500';
                 } else if (u.last_active_at) {
                   const lastActive = new Date(u.last_active_at);
@@ -194,11 +195,11 @@ export default function Users() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${presenceColor}`}></div>
-                        <span className="text-slate-700 font-medium text-sm">{u.status === 'pending' ? 'Pending' : presenceText === 'Online' ? 'Online' : presenceText === 'Account Removed' ? 'Removed' : 'Offline'}</span>
+                        <span className="text-slate-700 font-medium text-sm">{u.status === 'pending' ? 'Pending' : presenceText === 'Active' ? 'Active' : presenceText === 'Account Removed' ? 'Removed' : 'Inactive'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-xs">
-                      {presenceText !== 'Online' && presenceText !== 'Offline' && presenceText !== 'Account Removed' ? presenceText : (u.last_active_at ? 'Previously active' : 'Never')}
+                      {presenceText !== 'Active' && presenceText !== 'Inactive' && presenceText !== 'Account Removed' ? presenceText : (u.last_active_at ? 'Previously active' : 'Never')}
                     </td>
                     <td className="px-6 py-4 text-right relative">
                       {/* We only show actions if they are manageable */}

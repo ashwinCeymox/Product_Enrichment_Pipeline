@@ -278,7 +278,7 @@ export default function CreateJob() {
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                 <button 
                   type="submit" 
                   disabled={loading || !taskName || urlList.length === 0}
@@ -338,7 +338,7 @@ export default function CreateJob() {
                       <li key={item.job_id || idx} className="bg-slate-50 border border-slate-100 p-3 rounded-md shadow-sm text-sm relative group flex flex-col gap-2">
                         <button 
                           onClick={() => confirmDeleteTask(item.job_id, item.status)}
-                          className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                          className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                           title={['success', 'failed', 'aborted'].includes(item.status) ? "Dismiss from view" : "Abort Task"}
                         >
                           <X size={14} />

@@ -229,14 +229,15 @@ def abort_generation(job_id: str, db: Session = Depends(get_db)):
     return {"status": "success", "message": "Job aborted"}
 
 @router.post("/job/{job_id}/revert", summary="Revert job to JSON Review")
-def revert_to_json(job_id: str, db: Session = Depends(get_db)):
+def revert_to_json(job_id: str, keep_images: bool = False, db: Session = Depends(get_db)):
     job = db.query(ScrapeTask).filter(ScrapeTask.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    # Delete all generated image assets for this job
-    db.query(ImageAsset).filter(ImageAsset.scrape_task_id == job_id).delete()
-    cleanup_job_files(job_id, db)
+    if not keep_images:
+        # Delete all generated image assets for this job
+        db.query(ImageAsset).filter(ImageAsset.scrape_task_id == job_id).delete()
+        cleanup_job_files(job_id, db)
     
     job.status = "waiting_for_approval"
     db.commit()

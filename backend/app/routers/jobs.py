@@ -38,6 +38,7 @@ from app.schemas.jobs import (
     TaskStatus,
 )
 from app.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter(
     prefix="/jobs", 
@@ -534,7 +535,7 @@ def update_job_data(job_id: str, payload: ApprovalRequest, db: Session = Depends
     return {"status": "success", "message": "Product data updated"}
 
 @router.post("/{job_id}/finalize", summary="Finalize JSON and Bundle")
-def finalize_job(job_id: str, payload: ApprovalRequest, db: Session = Depends(get_db)):
+def finalize_job(job_id: str, payload: ApprovalRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     job = db.query(ScrapeTask).filter(ScrapeTask.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -577,7 +578,8 @@ def finalize_job(job_id: str, payload: ApprovalRequest, db: Session = Depends(ge
     job.result_zip_file = {
         "url": f"/jobs/{job.id}/download-zip", 
         "filename": zip_filename,
-        "size": f"{size_mb} MB"
+        "size": f"{size_mb} MB",
+        "approved_by": current_user.full_name or current_user.username or current_user.email
     }
     flag_modified(job, "result_zip_file")
     
