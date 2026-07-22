@@ -136,9 +136,9 @@ export default function BundleReview() {
   );
 
   return (
-    <div className="flex h-full bg-slate-50 overflow-hidden text-sm">
+    <div className="flex flex-col md:flex-row h-full bg-slate-50 overflow-y-auto md:overflow-hidden text-sm pb-4 md:pb-0">
       {/* Sidebar */}
-      <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col">
+      <div className="w-full md:w-64 flex-shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-white flex flex-col md:h-full shadow-sm z-20">
         <div className="p-3 border-b border-slate-200">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -157,7 +157,7 @@ export default function BundleReview() {
           <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-bold">{bundles.length}</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto max-h-[40vh] md:max-h-none">
           {loading ? (
             <SidebarListSkeleton items={5} />
           ) : filteredBundles.length === 0 ? (
@@ -237,7 +237,7 @@ export default function BundleReview() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full bg-slate-100 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-h-[600px] md:min-h-0 md:h-full bg-slate-100 md:overflow-hidden relative">
         {!selectedJob ? (
           <div className="flex-1 flex items-center justify-center flex-col text-slate-400">
             <Globe size={48} className="mb-4 opacity-20" />
@@ -247,8 +247,8 @@ export default function BundleReview() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="bg-white border-b border-slate-200 px-6 pt-4 flex justify-between items-end shrink-0">
-              <div className="flex gap-6">
+            <div className="bg-white border-b border-slate-200 px-4 md:px-6 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-end shrink-0 gap-2 sm:gap-0">
+              <div className="flex overflow-x-auto whitespace-nowrap gap-4 md:gap-6 w-full scrollbar-hide">
                 {[
                   { id: 'json', label: 'Edit Generated JSON' },
                   { id: 'table', label: 'Table View' },
@@ -284,7 +284,7 @@ export default function BundleReview() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 p-6 overflow-hidden">
+            <div className="flex-1 p-4 md:p-6 overflow-hidden">
               <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
                 
                 {/* 1. JSON Editor */}
@@ -297,52 +297,118 @@ export default function BundleReview() {
                   />
                 )}
 
-                {/* 2. Table View (Field Editor) */}
                 {activeTab === 'table' && (
-                  <div className="h-full overflow-auto">
+                  <div className="bg-slate-100 rounded-md border-t border-slate-200 h-full overflow-auto">
                     {(() => {
                       let parsed = {};
-                      try { parsed = JSON.parse(jsonData); } catch (e) { return <div className="p-8 text-red-500 text-center">Invalid JSON</div>; }
-                      const keys = Object.keys(parsed);
-                      
+                      let isValid = true;
+                      try {
+                        parsed = JSON.parse(jsonData);
+                        if (typeof parsed !== 'object' || parsed === null) throw new Error();
+                      } catch (e) {
+                        isValid = false;
+                      }
+
+                      if (!isValid) {
+                        return (
+                          <div className="flex items-center justify-center h-full text-red-500 text-sm">
+                            Invalid JSON format. Please fix in the Edit Generated JSON tab first.
+                          </div>
+                        );
+                      }
+
+                      const updateJsonPath = (path, value) => {
+                        try {
+                          const newParsed = JSON.parse(jsonData);
+                          let current = newParsed;
+                          for (let i = 0; i < path.length - 1; i++) {
+                            current = current[path[i]];
+                          }
+                          current[path[path.length - 1]] = value;
+                          setJsonData(JSON.stringify(newParsed, null, 2));
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      };
+
+                      const renderRecursiveEditor = (data, path = []) => {
+                        if (data === null) {
+                          return (
+                            <input 
+                              className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border bg-white focus:outline-none"
+                              value=""
+                              placeholder="null"
+                              onChange={(e) => updateJsonPath(path, e.target.value)}
+                            />
+                          );
+                        }
+
+                        if (Array.isArray(data)) {
+                          return (
+                            <div className="flex flex-col gap-3 pl-4 border-l-2 border-indigo-200 mt-1 mb-2">
+                              {data.map((item, idx) => (
+                                <div key={idx} className="flex gap-3 items-start bg-slate-50/50 p-2 rounded border border-slate-100">
+                                  <span className="text-[10px] font-bold text-slate-400 mt-2 w-4 shrink-0">{idx + 1}.</span>
+                                  <div className="flex-1">
+                                    {renderRecursiveEditor(item, [...path, idx])}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+
+                        if (typeof data === 'object') {
+                          return (
+                            <div className="flex flex-col gap-4 pl-4 border-l-2 border-slate-200 mt-2 mb-3 w-full">
+                              {Object.entries(data).map(([key, val]) => (
+                                <div key={key} className="flex flex-col gap-1.5">
+                                  <label className="text-xs font-bold text-slate-600 tracking-wide uppercase">{key.replace(/_/g, ' ')}</label>
+                                  {renderRecursiveEditor(val, [...path, key])}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+
+                        // Primitive (string, number, boolean)
+                        return (
+                          <textarea 
+                            value={data}
+                            rows={String(data).length > 80 ? 3 : 1}
+                            onChange={(e) => {
+                              let val = e.target.value;
+                              if (typeof data === 'number') val = Number(val) || 0;
+                              if (typeof data === 'boolean') val = val === 'true';
+                              updateJsonPath(path, val);
+                            }}
+                            className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-primary focus:ring-primary p-2 border bg-white focus:outline-none transition-shadow"
+                          />
+                        );
+                      };
+
+                      if (Object.keys(parsed).length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm">
+                            <p>The JSON object is empty.</p>
+                            <button onClick={() => setActiveTab('json')} className="mt-2 text-primary hover:underline">Switch to Edit Generated JSON to add data manually</button>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <table className="min-w-full divide-y divide-slate-200">
-                          <thead className="bg-slate-50 sticky top-0 z-10">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Field</th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Content</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200">
-                            {keys.map(key => {
-                              const val = parsed[key];
-                              const isString = typeof val === 'string';
-                              return (
-                                <tr key={key} className="hover:bg-slate-50">
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-700 align-top">
-                                    {key}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-slate-600">
-                                    {isString ? (
-                                      <textarea 
-                                        className="w-full min-h-[60px] p-2 border border-slate-300 rounded-md focus:ring-primary focus:border-primary text-sm"
-                                        value={val}
-                                        onChange={(e) => {
-                                          const newData = {...parsed, [key]: e.target.value};
-                                          setJsonData(JSON.stringify(newData, null, 2));
-                                        }}
-                                      />
-                                    ) : (
-                                      <pre className="bg-slate-100 p-3 rounded-md text-xs overflow-auto max-h-40 border border-slate-200">
-                                        {JSON.stringify(val, null, 2)}
-                                      </pre>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                        <div className="p-6">
+                          {Object.entries(parsed).map(([key, val]) => (
+                            <div key={key} className="mb-6 bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                              <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
+                                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{key.replace(/_/g, ' ')}</h4>
+                              </div>
+                              <div className="p-4">
+                                {renderRecursiveEditor(val, [key])}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       );
                     })()}
                   </div>

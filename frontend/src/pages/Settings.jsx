@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Activity, Users, Eye, EyeOff, MoreVertical, UserPlus, Database, Clock, Download, Save, RefreshCw, X, CheckCircle2, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { Key, Activity, Users, Eye, EyeOff, MoreVertical, UserPlus, Database, Clock, Download, Save, X, CheckCircle2, XCircle, Loader2, Trash2 } from 'lucide-react';
 import api from '../api/client';
 
 export default function Settings() {
@@ -109,12 +109,8 @@ export default function Settings() {
 
   return (
     <div className="h-full bg-slate-50 flex flex-col p-6 overflow-auto text-slate-800 font-sans">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">System Configuration</h1>
-        <div className="flex gap-3">
-          <button className="px-3 py-1.5 border border-slate-300 rounded-md text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-colors">Export Logs</button>
-          <button className="px-3 py-1.5 bg-[#3626A7] text-white rounded-md text-sm font-semibold hover:bg-blue-800 shadow-sm transition-colors">Save All Changes</button>
-        </div>
       </div>
 
       <div className="flex flex-col gap-6 mb-6">
@@ -122,14 +118,14 @@ export default function Settings() {
           <div className="flex items-center gap-2 text-[15px] font-bold text-slate-800 mb-1">
              <Key size={16} className="text-blue-600" /> API Connections
           </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] flex items-center justify-between">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold text-slate-800 text-[15px]">AI Tools Credentials</h3>
               <p className="text-sm text-slate-500 mt-1">Manage API keys for Deepseek, Nano Banana, Gemini (OpenRouter), and Serper API.</p>
             </div>
             <button 
               onClick={() => setShowApiModal(true)}
-              className="px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-md border border-indigo-200 hover:bg-indigo-100 transition-colors text-sm"
+              className="w-full sm:w-auto px-4 py-2 bg-indigo-50 text-indigo-700 font-semibold rounded-md border border-indigo-200 hover:bg-indigo-100 transition-colors text-sm text-center shrink-0"
             >
               Manage Credentials
             </button>
@@ -177,11 +173,6 @@ export default function Settings() {
       </div>
 
 
-      
-      {/* Floating Refresh Button */}
-      <button className="absolute bottom-6 right-6 bg-[#3626A7] hover:bg-blue-800 text-white rounded-lg shadow-xl px-4 py-2.5 flex items-center gap-2 font-bold text-sm transition-all transform hover:scale-105 border border-indigo-700">
-        <RefreshCw size={14} /> Refresh
-      </button>
 
       {/* AI Credentials Modal */}
       {showApiModal && (
