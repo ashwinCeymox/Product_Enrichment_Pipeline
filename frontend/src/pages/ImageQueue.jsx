@@ -3,7 +3,7 @@ import { Image as ImageIcon, CheckCircle, RefreshCcw, Rocket, Layers, UploadClou
 import clsx from 'clsx';
 import api from '../api/client';
 import { useSearchParams } from 'react-router-dom';
-import { ImageQueueSkeleton } from '../components/Shimmer';
+import { ImageQueueSkeleton, ShimmerBar } from '../components/Shimmer';
 
 const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><rect width="400" height="400" fill="%23f1f5f9"/><text x="200" y="200" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle" dominant-baseline="middle">Failed to load</text></svg>`;
 
@@ -19,6 +19,7 @@ export default function ImageQueue() {
   const [hasInitialSelection, setHasInitialSelection] = useState(false);
   
   const [showStopModal, setShowStopModal] = useState(false);
+  const [showKeepImagesModal, setShowKeepImagesModal] = useState(false);
   const [stopJobId, setStopJobId] = useState(null);
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -122,15 +123,26 @@ export default function ImageQueue() {
     }
   };
 
-  const handleRevert = async (jobId) => {
+  const handleRevert = async (jobId, keepImages = false) => {
     if (!jobId) return;
     try {
-      await api.post(`/images/job/${jobId}/revert`);
+      await api.post(`/images/job/${jobId}/revert`, null, { params: { keep_images: keepImages } });
       setShowStopModal(false);
+      setShowKeepImagesModal(false);
       setActiveJobId(null);
       await fetchQueue();
     } catch (err) {
       console.error('Failed to revert', err);
+    }
+  };
+
+  const handleRevertClick = (jobId) => {
+    const job = queue.find(j => j.job_id === jobId);
+    const hasVariations = job?.assets?.some(a => a.variations && a.variations.length > 0);
+    if (hasVariations) {
+      setShowKeepImagesModal(true);
+    } else {
+      handleRevert(jobId, false);
     }
   };
 
@@ -246,16 +258,16 @@ export default function ImageQueue() {
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-6 overflow-hidden">
+    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-6rem)] flex flex-col md:flex-row gap-4 md:gap-6 overflow-y-auto md:overflow-hidden pb-4 md:pb-0">
       
       {/* LEFT PANEL: Project Assets */}
-      <div className="w-1/4 min-w-[300px] flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="w-full md:w-1/4 md:min-w-[300px] flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm shrink-0 md:h-full">
         <div className="p-4 border-b border-slate-100 bg-slate-50">
           <div className="text-xs font-bold text-slate-400 tracking-wider mb-1">PROJECT ASSETS</div>
           <h2 className="text-lg font-bold text-slate-800">Image Review</h2>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50 max-h-[35vh] md:max-h-none">
           {queue.map(job => {
             const isJobActive = activeJobId === job.job_id;
             // Calculate percentage based on status or approved assets
@@ -342,10 +354,10 @@ export default function ImageQueue() {
       ) : (
         <>
           {/* MIDDLE PANEL: Active Image & Bottom Status */}
-          <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+          <div className="flex-1 flex flex-col gap-4 md:gap-6 min-h-[500px] md:min-h-0 md:overflow-hidden">
             
             {/* Credit Exhaustion / Error Banner */}
-            {activeJob?.error_message && !dismissedAlerts.has(activeJob.job_id) && (
+            {activeJob?.error_message && activeJob.status !== 'image_generation' && !dismissedAlerts.has(activeJob.job_id) && (
               <div className={clsx(
                 "rounded-xl border px-5 py-4 flex items-start gap-4 shadow-sm animate-in fade-in",
                 activeJob.error_message.includes('CREDITS_EXHAUSTED')
@@ -365,14 +377,14 @@ export default function ImageQueue() {
                     "text-sm font-bold tracking-wide",
                     activeJob.error_message.includes('CREDITS_EXHAUSTED') ? "text-amber-800" : "text-rose-800"
                   )}>
-                    {activeJob.error_message.includes('CREDITS_EXHAUSTED') ? 'API Credits Exhausted' : 'Image Generation Failed'}
+                    Image Generation Failed
                   </h4>
                   <p className={clsx(
                     "text-sm mt-1",
                     activeJob.error_message.includes('CREDITS_EXHAUSTED') ? "text-amber-700" : "text-rose-700"
                   )}>
-                    {activeJob.error_message.includes('CREDITS_EXHAUSTED')
-                      ? 'Your OpenRouter API credits have run out. Top up your balance and then resume generation.'
+                    {activeJob.error_message.includes('CREDITS_EXHAUSTED') || activeJob.error_message.toLowerCase().includes('credit') || activeJob.error_message.includes('image generation attempts failed')
+                      ? "We think you've run out of image generation credits. Please check your available credits and try again."
                       : activeJob.error_message}
                   </p>
                   <div className="flex items-center gap-3 mt-3">
@@ -387,7 +399,7 @@ export default function ImageQueue() {
                       </a>
                     )}
                     <button
-                      onClick={() => handleRevert(activeJob.job_id)}
+                      onClick={() => handleRevertClick(activeJob.job_id)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 px-3 py-1.5 rounded-md hover:bg-slate-50 transition-colors"
                     >
                       Return to JSON Review
@@ -410,11 +422,11 @@ export default function ImageQueue() {
             
             {/* Top: Active Preview & Prompt Editor */}
             <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0 bg-slate-50">
+            <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide truncate w-full sm:w-auto">
               {currentAsset?.variation_group ? currentAsset.variation_group.replace('_', ' ') : 'Asset Preview'}
             </h2>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
               {activeJob?.status === 'image_generation' && (
                 <button 
                   onClick={() => { setStopJobId(activeJob.job_id); setShowStopModal(true); }}
@@ -426,12 +438,12 @@ export default function ImageQueue() {
               {(activeJob?.status === 'image_generation_complete' || activeJob?.status === 'image_generation_stopped') && (
                 <button 
                   onClick={() => handleFinish(activeJob.job_id)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-md shadow-sm hover:bg-blue-100 transition-colors"
+                  className="flex items-center justify-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-md shadow-sm hover:bg-blue-100 transition-colors shrink-0 whitespace-nowrap"
                 >
                   <CheckCircle size={14} /> APPROVE ALL
                 </button>
               )}
-              <div className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-md shadow-sm">
+              <div className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-md shadow-sm shrink-0 whitespace-nowrap">
                 {activeJob?.status === 'image_generation' ? 'GENERATING...' : activeJob?.status === 'image_generation_stopped' ? 'STOPPED' : (activeJob?.status === 'failed' || activeJob?.status === 'image_generation_failed') ? 'FAILED' : 'COMPLETE'}
               </div>
             </div>
@@ -439,7 +451,7 @@ export default function ImageQueue() {
           
           {/* Main Image Preview */}
           <div className="flex-1 bg-slate-100 p-6 flex flex-col relative overflow-hidden group">
-            {variations.length > 0 && activeVariation ? (
+            {variations.length > 0 && activeVariation && activeVariation.status !== 'generating' ? (
               <>
                 <div className="flex-1 flex items-center justify-center relative w-full h-full p-2">
                   <div 
@@ -488,13 +500,23 @@ export default function ImageQueue() {
                 </div>
               </>
             ) : (
-              <div className="h-full w-full text-slate-400 flex flex-col items-center justify-center">
+              <div className="h-full w-full flex flex-col items-center justify-center relative overflow-hidden rounded-lg">
                 {activeJob?.status === 'image_generation_stopped' ? (
-                  <StopCircle className="mb-2 text-rose-400" size={32} />
+                  <div className="text-slate-400 flex flex-col items-center">
+                    <StopCircle className="mb-2 text-rose-400" size={32} />
+                    <p>Generation Stopped.</p>
+                  </div>
                 ) : (
-                  <Loader2 className="animate-spin mb-2" size={32} />
+                  <>
+                    <div className="absolute inset-0 z-0">
+                      <ShimmerBar className="w-full h-full opacity-60" />
+                    </div>
+                    <div className="z-10 flex flex-col items-center justify-center text-slate-500 w-full h-full">
+                      <ImageIcon className="mb-4 opacity-50" size={48} />
+                      <p className="font-semibold tracking-wide bg-white/75 px-4 py-1.5 rounded-full shadow-sm backdrop-blur-md border border-white/40 text-sm">Generating</p>
+                    </div>
+                  </>
                 )}
-                <p>{activeJob?.status === 'image_generation_stopped' ? 'Generation Stopped.' : 'Generating Images via DeepSeek & Gemini Nano Banana...'}</p>
               </div>
             )}
           </div>
@@ -554,7 +576,7 @@ export default function ImageQueue() {
       </div>
 
       {/* RIGHT PANEL: Variations */}
-      <div className="w-[280px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="w-full md:w-[280px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm md:h-full">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
           <div className="text-xs font-bold text-slate-500 tracking-wider flex items-center gap-2">
             <Layers size={14} />
@@ -578,9 +600,12 @@ export default function ImageQueue() {
                 )}
               >
                 {variation.status === 'generating' ? (
-                  <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
-                    <Loader2 className="animate-spin mb-2" size={20} />
-                    <span className="text-[10px] font-bold tracking-wider text-slate-400">GENERATING</span>
+                  <div className="relative w-full h-full overflow-hidden">
+                    <ShimmerBar className="absolute inset-0 w-full h-full" />
+                    {/* <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 z-10 bg-white/30 backdrop-blur-[1px]">
+                      <ImageIcon className="mb-1.5 opacity-50" size={20} />
+                      <span className="text-[10px] font-bold tracking-wider bg-white/80 px-2 py-0.5 rounded shadow-sm text-center">Generating</span>
+                    </div> */}
                   </div>
                 ) : variation.status === 'failed' ? (
                   <div className="flex flex-col items-center justify-center text-rose-400 p-2 text-center bg-rose-50 w-full h-full relative group/failed">
@@ -628,6 +653,12 @@ export default function ImageQueue() {
             <div className="p-6 border-t border-slate-200 bg-white mt-auto">
               <h3 className="text-[13px] font-bold text-slate-500 uppercase tracking-wider mb-5">Asset Metadata</h3>
               <div className="space-y-4 text-[15px]">
+                <div className="flex justify-between items-start gap-4">
+                  <span className="text-slate-500 flex-shrink-0">Product</span>
+                  <span className="font-semibold text-slate-800 text-right leading-tight">
+                    {activeJob?.product_name || activeJob?.task_name || 'Unknown Product'}
+                  </span>
+                </div>
                 <div className="flex justify-between items-start gap-4">
                   <span className="text-slate-500 flex-shrink-0">File</span>
                   <span className="font-semibold text-slate-800 break-all text-right leading-tight">{activeVariation.asset_name}</span>
@@ -749,15 +780,52 @@ export default function ImageQueue() {
                 <span className="text-xs font-normal text-rose-500">Deletes images and aborts workflow.</span>
               </button>
               <button 
-                onClick={() => handleRevert(stopJobId)}
+                onClick={() => handleRevertClick(stopJobId)}
                 className="w-full text-left px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-400 transition-colors shadow-sm flex flex-col gap-1"
               >
                 <span>Return to JSON Review</span>
-                <span className="text-xs font-normal text-slate-500">Deletes images and returns to previous step.</span>
+                <span className="text-xs font-normal text-slate-500">Returns task to previous step.</span>
               </button>
               <button 
                 onClick={() => setShowStopModal(false)}
                 className="w-full text-center px-4 py-2 mt-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Keep Images Confirmation Modal */}
+      {showKeepImagesModal && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 flex flex-col items-center justify-center backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-4">
+                <ImageIcon size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800">Keep generated images?</h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Images have already been generated for this task. Do you want to keep them when returning to JSON Review?
+              </p>
+            </div>
+            
+            <div className="p-4 bg-slate-50 flex flex-col gap-2">
+              <button 
+                onClick={() => handleRevert(stopJobId || activeJob?.job_id, true)}
+                className="w-full py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+              >
+                Yes, Keep Images
+              </button>
+              <button 
+                onClick={() => handleRevert(stopJobId || activeJob?.job_id, false)}
+                className="w-full py-2.5 text-sm font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                No, Clear Images
+              </button>
+              <button 
+                onClick={() => setShowKeepImagesModal(false)}
+                className="w-full py-2 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors mt-1"
               >
                 Cancel
               </button>

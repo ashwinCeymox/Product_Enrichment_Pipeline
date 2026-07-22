@@ -72,7 +72,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute right-0 top-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110" />
@@ -138,9 +138,9 @@ export default function Dashboard() {
                 <div 
                   key={item.job_id || idx} 
                   onClick={() => handleRowClick(item)}
-                  className="p-5 hover:bg-slate-50/80 transition-colors flex items-center justify-between cursor-pointer"
+                  className="p-4 md:p-5 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-2 cursor-pointer overflow-hidden"
                 >
-                  <div className="flex flex-col gap-1.5 max-w-[65%] pointer-events-none">
+                  <div className="flex flex-col gap-1.5 w-full sm:max-w-[65%] pointer-events-none min-w-0">
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-slate-800 text-sm">{item.task_name}</span>
                       <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{new Date(item.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</span>
@@ -150,7 +150,7 @@ export default function Dashboard() {
                     </a>
                   </div>
                   
-                  <div className="flex flex-col items-end gap-2.5 min-w-[140px]">
+                  <div className="flex flex-col items-start sm:items-end gap-2.5 w-full sm:w-auto sm:min-w-[140px]">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(item.status)}
                       <span className="text-[13px] font-bold text-slate-700 uppercase tracking-wide">
@@ -158,8 +158,8 @@ export default function Dashboard() {
                       </span>
                     </div>
                     
-                    {item.status !== 'success' && item.status !== 'failed' && (
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+                    {item.status !== 'success' && item.status !== 'failed' && item.status !== 'aborted' && (
+                      <div className="w-full sm:w-32 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                         <div 
                           className="bg-blue-500 h-full transition-all duration-1000 ease-out" 
                           style={{ width: `${item.progress || 0}%` }} 
