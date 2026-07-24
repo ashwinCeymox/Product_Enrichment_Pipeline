@@ -3,6 +3,7 @@ import api from '../api/client';
 import { UploadCloud, Play, Calendar, AlertCircle, Loader2, Clock, CheckCircle2, XCircle, X } from 'lucide-react';
 import clsx from 'clsx';
 import { QueueSidebarSkeleton } from '../components/Shimmer';
+import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 
 export default function CreateJob() {
   const [taskName, setTaskName] = useState('');
@@ -24,6 +25,9 @@ export default function CreateJob() {
   const [taskToDelete, setTaskToDelete] = useState(null);
   
   const [showCredentialModal, setShowCredentialModal] = useState(false);
+  
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditError, setCreditError] = useState(null);
 
   const urlList = urls.split('\n').map(u => u.trim()).filter(Boolean);
 
@@ -76,7 +80,11 @@ export default function CreateJob() {
         }
       }
       
-      if (errorMsg.includes("CREDENTIALS_MISSING")) {
+      if (err.response?.status === 402 && err.response?.data?.detail?.error === 'insufficient_credits') {
+        setCreditError(err.response.data.detail);
+        setShowCreditModal(true);
+        setMessage('');
+      } else if (errorMsg.includes("CREDENTIALS_MISSING")) {
         setShowCredentialModal(true);
         setMessage(''); // Clear generic message
       } else {
@@ -152,7 +160,11 @@ export default function CreateJob() {
         }
       }
       
-      if (errorMsg.includes("CREDENTIALS_MISSING")) {
+      if (err.response?.status === 402 && err.response?.data?.detail?.error === 'insufficient_credits') {
+        setCreditError(err.response.data.detail);
+        setShowCreditModal(true);
+        setMessage('');
+      } else if (errorMsg.includes("CREDENTIALS_MISSING")) {
         setShowCredentialModal(true);
         setMessage(''); // Clear generic message
       } else {
@@ -192,7 +204,7 @@ export default function CreateJob() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="mx-auto space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Left Column: Job Creation Form */}
@@ -461,6 +473,15 @@ export default function CreateJob() {
         </div>
       )}
 
+      {/* Credit Error Modal */}
+      <InsufficientCreditsModal 
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        remainingCredits={creditError?.balance}
+        jobCost={creditError?.job_cost}
+        mode="create"
+        providerName={creditError?.provider === 'deepseek' ? 'DeepSeek' : 'OpenRouter'}
+      />
     </div>
   );
 }

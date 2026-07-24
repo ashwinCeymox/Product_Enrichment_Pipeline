@@ -16,7 +16,7 @@ from app.database import Base, engine
 import app.models  # noqa: F401
 
 # Import routers
-from app.routers import health, jobs, dashboard, images, settings, auth, users
+from app.routers import health, jobs, dashboard, images, settings, auth, users, credits
 
 # ── Create tables (dev convenience — use Alembic in production) ──
 Base.metadata.create_all(bind=engine)
@@ -55,6 +55,7 @@ app.include_router(images.router)
 app.include_router(settings.router)
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(credits.router)
 
 
 @app.get("/", tags=["Root"])
@@ -142,6 +143,12 @@ def _bootstrap_superadmin():
     finally:
         db.close()
 
+def _bootstrap_credits():
+    """Background thread to seed credit balance from OpenRouter on startup."""
+    time.sleep(5)  # Wait for server to fully start
+    from app.services import credit_service
+    credit_service.bootstrap_credits()
+
 @app.on_event("startup")
 async def startup_events():
     """Launch recovery in a background thread so it doesn't block startup."""
@@ -150,4 +157,8 @@ async def startup_events():
     
     # Bootstrap superadmin
     _bootstrap_superadmin()
+    
+    # Bootstrap credit balance from OpenRouter
+    credits_thread = threading.Thread(target=_bootstrap_credits, daemon=True)
+    credits_thread.start()
 

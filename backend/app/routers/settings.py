@@ -1,5 +1,6 @@
 import os
 import aiohttp
+from app.services import credit_service
 from fastapi import APIRouter, Depends
 from app.dependencies import require_superadmin
 
@@ -59,18 +60,22 @@ async def verify_openrouter():
         async with session.get("https://openrouter.ai/api/v1/auth/key", headers=headers) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                data_dict = data.get("data", {})
-                label = data_dict.get("label", "Valid Key")
-                limit = data_dict.get("limit")
-                usage = data_dict.get("usage", 0)
-                credits_remaining = None
-                if limit is not None:
-                    credits_remaining = round(limit - usage, 4)
+                label = data.get("data", {}).get("label", "Valid Key")
                 
+                # Fetch balance via credits endpoint
+                try:
+                    credits_remaining = await credit_service.fetch_openrouter_credits()
+                    
+                    # Refresh the credit cache so REMAINING CREDITS badge updates
+                    credit_service._set_float(credit_service.KEY_ACTUAL, credits_remaining)
+                    credit_service._set_float(credit_service.KEY_EXPECTED, credits_remaining)
+                except Exception:
+                    credits_remaining = None
+
                 return {
                     "status": "success", 
                     "message": f"Verified ({label})",
-                    "credits_remaining": f"${credits_remaining}" if credits_remaining is not None else "Unlimited / Pay-as-you-go"
+                    "credits_remaining": f"${credits_remaining:.4f}" if credits_remaining is not None else "Balance unavailable"
                 }
             else:
                 return {"status": "error", "message": f"HTTP {resp.status}"}
@@ -81,12 +86,37 @@ async def verify_deepseek():
     if not key:
         return {"status": "error", "message": "Key not set"}
     async with aiohttp.ClientSession() as session:
+        # First verify the key is valid
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         async with session.get("https://api.deepseek.com/models", headers=headers) as resp:
-            if resp.status == 200:
-                return {"status": "success", "message": "Key is valid"}
-            else:
+            if resp.status != 200:
                 return {"status": "error", "message": f"HTTP {resp.status}"}
+        
+        # Then fetch balance info
+        headers_balance = {"Authorization": f"Bearer {key}", "Accept": "application/json"}
+        try:
+            async with session.get("https://api.deepseek.com/user/balance", headers=headers_balance) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    credits_remaining = None
+                    for info in data.get("balance_infos", []):
+                        if info.get("currency") == "USD":
+                            credits_remaining = round(float(info.get("total_balance", 0)), 4)
+                            break
+                    if credits_remaining is None:
+                        for info in data.get("balance_infos", []):
+                            if info.get("currency") == "CNY":
+                                credits_remaining = round(float(info.get("total_balance", 0)) / 7.25, 4)
+                                break
+                    return {
+                        "status": "success",
+                        "message": "Key is valid",
+                        "credits_remaining": credits_remaining
+                    }
+        except Exception:
+            pass
+        
+        return {"status": "success", "message": "Key is valid"}
 
 @router.post("/verify/serper", summary="Verify Serper Key")
 async def verify_serper():

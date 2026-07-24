@@ -7,9 +7,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router-dom';
-import { Check, X, FileJson, Loader2, RefreshCw, ChevronLeft } from 'lucide-react';
+import { Check, X, FileJson, Loader2, RefreshCw, ChevronLeft, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { TableSkeleton } from '../components/Shimmer';
+import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 
 export default function JsonReview() {
   const [data, setData] = useState([]);
@@ -18,6 +19,12 @@ export default function JsonReview() {
   const [jsonData, setJsonData] = useState('');
   const [activeTab, setActiveTab] = useState('table');
   const [saving, setSaving] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditError, setCreditError] = useState(null);
+  const [creditWarning, setCreditWarning] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [rowSelection, setRowSelection] = useState({});
+  const [isAborting, setIsAborting] = useState(false);
   const [searchParams] = useSearchParams();
   const targetTaskId = searchParams.get('taskId');
 
@@ -55,16 +62,28 @@ export default function JsonReview() {
   const handleApprove = async () => {
     if (!selectedJob) return;
     setSaving(true);
+    setCreditWarning(null);
     try {
       let parsedData = {};
       try { parsedData = JSON.parse(jsonData); } catch(e) { alert('Invalid JSON format!'); setSaving(false); return; }
       
-      await api.post(`/jobs/${selectedJob.id}/approve`, { product_data: parsedData });
+      const res = await api.post(`/jobs/${selectedJob.id}/approve`, { product_data: parsedData });
+      
+      if (res.data.warning) {
+        setCreditWarning(res.data.warning_message || 'Credits are running low');
+        setTimeout(() => setCreditWarning(null), 5000);
+      }
+      
       setSelectedJob(null);
       fetchJobs();
     } catch (err) {
-      console.error(err);
-      alert('Failed to approve job');
+      if (err.response?.status === 402 && err.response?.data?.detail?.error === 'insufficient_credits') {
+        setCreditError(err.response.data.detail);
+        setShowCreditModal(true);
+      } else {
+        console.error(err);
+        alert('Failed to approve job');
+      }
     } finally {
       setSaving(false);
     }
@@ -85,8 +104,45 @@ export default function JsonReview() {
     }
   };
 
+  const handleBulkRemove = async () => {
+    const selectedIds = table.getSelectedRowModel().rows.map(r => r.original.id);
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to remove ${selectedIds.length} tasks? They will be aborted.`)) return;
+    
+    setIsAborting(true);
+    try {
+      await Promise.all(selectedIds.map(id => api.delete(`/jobs/${id}`)));
+      setRowSelection({});
+      fetchJobs();
+    } catch (err) {
+      console.error('Failed to remove some jobs', err);
+      alert('Failed to remove some jobs.');
+    } finally {
+      setIsAborting(false);
+    }
+  };
+
   const columnHelper = createColumnHelper();
   const columns = [
+    columnHelper.display({
+      id: 'select',
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllRowsSelected()}
+          onChange={table.getToggleAllRowsSelectedHandler()}
+          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+        />
+      ),
+    }),
     columnHelper.display({
       id: 'index',
       header: 'No.',
@@ -150,26 +206,58 @@ export default function JsonReview() {
     })
   ];
 
+  const filteredData = React.useMemo(() => {
+    if (!searchQuery.trim()) return data;
+    const lowerQ = searchQuery.toLowerCase();
+    return data.filter(job => 
+      job.task_name?.toLowerCase().includes(lowerQ) ||
+      job.url?.toLowerCase().includes(lowerQ) ||
+      (job.product_data && JSON.stringify(job.product_data).toLowerCase().includes(lowerQ))
+    );
+  }, [data, searchQuery]);
+
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
+    state: { rowSelection },
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800">JSON Approval Queue</h2>
           <p className="text-sm text-slate-500 mt-1">Review, edit, and approve extracted product attributes before image generation.</p>
         </div>
-        <button 
-          onClick={fetchJobs} 
-          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <RefreshCw size={16} className={clsx(loading && "animate-spin")} />
-          Refresh
-        </button>
+        
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <input 
+            type="text" 
+            placeholder="Search task or URL..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {Object.keys(rowSelection).length > 0 && (
+            <button 
+              onClick={handleBulkRemove}
+              disabled={isAborting}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-rose-50 border border-rose-200 rounded-md shadow-sm text-sm font-medium text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+            >
+              {isAborting ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+              Remove Selected
+            </button>
+          )}
+          <button 
+            onClick={fetchJobs} 
+            className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
+          >
+            <RefreshCw size={16} className={clsx(loading && "animate-spin")} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
@@ -188,8 +276,8 @@ export default function JsonReview() {
             </thead>
             <tbody className="divide-y divide-slate-200 bg-white">
               {loading && data.length === 0 ? (
-                <TableSkeleton columns={6} rows={4} />
-              ) : data.length === 0 ? (
+                <TableSkeleton columns={7} rows={4} />
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
                     No items awaiting approval.
@@ -410,6 +498,26 @@ export default function JsonReview() {
           </div>
         </div>
       )}
+
+      {/* Credit Warning Toast */}
+      {creditWarning && (
+        <div className="fixed top-4 right-4 z-50 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-top duration-300">
+          <AlertTriangle size={18} className="text-amber-500" />
+          <span className="text-sm font-medium">{creditWarning}</span>
+          <button onClick={() => setCreditWarning(null)} className="text-amber-400 hover:text-amber-600">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Insufficient Credits Modal */}
+      <InsufficientCreditsModal
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        remainingCredits={creditError?.actual_remaining}
+        jobCost={creditError?.job_cost}
+        mode="approval"
+      />
 
     </div>
   );

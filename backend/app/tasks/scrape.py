@@ -117,6 +117,13 @@ def process_scrape(self, task_id: str):
         
         product_data = {}
         if deepseek_key and deepseek_key.strip():
+            # ── Deepseek Worker Credit Check ─────────────────────────
+            from app.services.credit_service import deepseek_worker_check
+            ds_check = deepseek_worker_check()
+            if ds_check["status"] == "block":
+                raise Exception(f"Deepseek credits exhausted: {ds_check.get('reason')}")
+            # ─────────────────────────────────────────────────────────
+
             from litellm import completion
             
             task.append_activity("ai_processing", "Extracting initial product details")
@@ -238,12 +245,18 @@ def dispatch_scheduled_jobs():
 
         dispatched = 0
         for task in due_tasks:
-            task.status = "queued"
-            task.append_activity("queued", "Dispatched by Celery Beat scheduler")
-            db.commit()
-            # Dispatch the actual scrape task
-            process_scrape.delay(task.id)
-            dispatched += 1
+            try:
+                task.status = "queued"
+                task.append_activity("queued", "Dispatched by Celery Beat scheduler")
+                db.commit()
+                # Dispatch the actual scrape task
+                process_scrape.delay(task.id)
+                dispatched += 1
+            except Exception as e:
+                task.status = "failed"
+                task.error_message = f"Failed to dispatch to Celery: {e}"
+                task.append_activity("failed", f"Beat dispatch error: {e}")
+                db.commit()
 
         return f"Dispatched {dispatched} scheduled job(s)"
     finally:

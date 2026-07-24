@@ -29,6 +29,8 @@ class RecentActivityItem(BaseModel):
     task_name: str
     source_url: str
     product_name: Optional[str] = None
+    priority: Optional[str] = None
+    product_type: Optional[str] = None
     status: str
     current_stage: Optional[str] = None
     current_status: Optional[str] = None

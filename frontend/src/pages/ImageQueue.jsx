@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import api from '../api/client';
 import { useSearchParams } from 'react-router-dom';
 import { ImageQueueSkeleton, ShimmerBar } from '../components/Shimmer';
+import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 
 const fallbackImage = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><rect width="400" height="400" fill="%23f1f5f9"/><text x="200" y="200" font-family="system-ui, sans-serif" font-size="20" font-weight="600" fill="%2364748b" text-anchor="middle" dominant-baseline="middle">Failed to load</text></svg>`;
 
@@ -29,14 +30,31 @@ export default function ImageQueue() {
   const [showDeleteJobModal, setShowDeleteJobModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState(null);
 
+  const [remainingCredits, setRemainingCredits] = useState(null);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditError, setCreditError] = useState(null);
+
   const [searchParams] = useSearchParams();
   const targetTaskId = searchParams.get('taskId');
 
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(fetchQueue, 3000);
+    fetchCredits();
+    const interval = setInterval(() => {
+      fetchQueue();
+      fetchCredits();
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchCredits = async () => {
+    try {
+      const res = await api.get('/credits/status');
+      setRemainingCredits(res.data.actual_remaining);
+    } catch (err) {
+      // Silently fail
+    }
+  };
 
   // Handle default selection when queue loads or changes
   useEffect(() => {
@@ -84,7 +102,12 @@ export default function ImageQueue() {
       await api.post(`/images/${assetId}/regenerate`, null, { params: { prompt_text: promptText } });
       await fetchQueue();
     } catch (err) {
-      console.error('Failed to regenerate', err);
+      if (err.response?.status === 402 && err.response?.data?.detail?.error === 'insufficient_credits') {
+        setCreditError(err.response.data.detail);
+        setShowCreditModal(true);
+      } else {
+        console.error('Failed to regenerate', err);
+      }
     } finally {
       setIsRegenerating(false);
     }
@@ -577,11 +600,19 @@ export default function ImageQueue() {
 
       {/* RIGHT PANEL: Variations */}
       <div className="w-full md:w-[280px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm md:h-full">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <div className="text-xs font-bold text-slate-500 tracking-wider flex items-center gap-2">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+          <div className="text-xs font-bold text-slate-500 tracking-wider flex items-center gap-2 shrink-0">
             <Layers size={14} />
             VARIATIONS ({variations.length})
           </div>
+          {remainingCredits !== null && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 rounded-full shadow-sm shrink-0" title="Remaining API Credits">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span className="text-[11px] font-bold text-emerald-700 tracking-wider whitespace-nowrap">
+                ${typeof remainingCredits === 'number' ? remainingCredits.toFixed(2) : remainingCredits}
+              </span>
+            </div>
+          )}
         </div>
         
         <div className="flex-1 overflow-y-auto p-5 bg-slate-50">
@@ -896,6 +927,25 @@ export default function ImageQueue() {
           </div>
         </div>
       )}
+
+      {/* Insufficient Credits Modal */}
+      <InsufficientCreditsModal
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        remainingCredits={creditError?.expected_remaining}
+        mode="variant"
+        onKeepImages={() => {
+          setShowCreditModal(false);
+          if (activeJob) handleRevertClick(activeJob.job_id);
+        }}
+        onClearImages={() => {
+          setShowCreditModal(false);
+          if (activeJob) {
+            api.post(`/images/job/${activeJob.job_id}/abort`);
+            fetchQueue();
+          }
+        }}
+      />
     </div>
   );
 }

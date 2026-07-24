@@ -75,6 +75,15 @@ export default function Settings() {
         ...prev, 
         [toolKey]: { status: res.data.status, message: res.data.message || res.data.data?.label, credits: res.data.credits_remaining } 
       }));
+
+      // Refresh credit cache so REMAINING CREDITS badge updates globally
+      if (toolKey === 'openrouter' && res.data.status === 'success') {
+        try {
+          await api.post('/credits/refresh');
+        } catch (e) {
+          // Non-critical
+        }
+      }
     } catch (err) {
       setVerifyStatus(prev => ({ 
         ...prev, 

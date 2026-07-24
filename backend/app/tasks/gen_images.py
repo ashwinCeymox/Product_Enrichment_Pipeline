@@ -82,8 +82,35 @@ async def _run_image_pipeline(job_id: str):
         if not prompt_results["lifestyle"] and not prompt_results["features"]:
             raise Exception("Failed to generate any image prompts. Check LLM (DeepSeek) configuration and API keys.")
         
+        # ── Credit check callback (Flow B) ───────────────────────
+        from app.services import credit_service
+        from app.credit_config import PER_IMAGE_COST_USD, MID_TASK_THRESHOLD_USD
+        
+        credit_stop_requested = False
+        
+        def on_image_cost(cost: float):
+            nonlocal credit_stop_requested
+            # Deduct from expected
+            actual_cost = cost if cost > 0 else PER_IMAGE_COST_USD
+            credit_service.deduct_expected(actual_cost)
+            
+            # Resync with real API (after every image — see §5 step 4)
+            try:
+                credit_service.refresh_actual_sync()
+            except Exception as e:
+                print(f"[credits] Resync failed (non-fatal): {e}")
+            
+            # Check threshold
+            check = credit_service.check_mid_task()
+            if check["status"] == "block":
+                print(f"[credits] ⚠️ Credits below ${MID_TASK_THRESHOLD_USD} threshold — stopping generation")
+                credit_stop_requested = True
+        # ── End credit callback ──────────────────────────────────
+        
         def check_cancel():
             db.refresh(job)
+            if credit_stop_requested:
+                return True
             return job.status in ["image_generation_stopped", "success", "aborted", "waiting_for_approval", "failed"]
             
         # Identify existing valid base images to skip regenerating them
@@ -133,8 +160,16 @@ async def _run_image_pipeline(job_id: str):
             reference_image_paths=ref_image_paths,
             check_cancel_cb=check_cancel,
             on_image_generated_cb=on_image_generated,
-            should_skip_cb=should_skip
+            should_skip_cb=should_skip,
+            on_image_cost_cb=on_image_cost
         )
+        
+        # Check if generation was stopped due to credit exhaustion
+        if credit_stop_requested:
+            job.status = "image_generation_failed"
+            job.error_message = "CREDITS_EXHAUSTED: OpenRouter API credits have been exhausted. Please top up at https://openrouter.ai/settings/credits"
+            db.commit()
+            return
         
         db.refresh(job)
         if job.status not in ["image_generation_stopped", "aborted", "waiting_for_approval", "failed"]:
@@ -145,19 +180,23 @@ async def _run_image_pipeline(job_id: str):
         error_str = str(e)
         print(f"Error in image pipeline: {error_str}")
         
-        # Issue 1: Cleanup temporary files and partial DB records on unexpected failure
-        try:
-            db.query(ImageAsset).filter(ImageAsset.scrape_task_id == job.id).delete()
-            from app.routers.images import cleanup_job_files
-            cleanup_job_files(str(job.id), db)
-        except Exception as cleanup_err:
-            print(f"Failed to cleanup after error: {cleanup_err}")
+        is_credit_error = ("402" in error_str and "Insufficient credits" in error_str) or credit_stop_requested
         
-        # Detect specific credit exhaustion from OpenRouter (402)
-        if "402" in error_str and "Insufficient credits" in error_str:
+        if is_credit_error:
+            # Credit exhaustion: do NOT cleanup already-generated images.
+            # They were already paid for and should be preserved.
+            # Job can be resumed after topping up credits.
             job.status = "image_generation_failed"
             job.error_message = "CREDITS_EXHAUSTED: OpenRouter API credits have been exhausted. Please top up at https://openrouter.ai/settings/credits"
         else:
+            # Non-credit error: cleanup as before
+            try:
+                db.query(ImageAsset).filter(ImageAsset.scrape_task_id == job.id).delete()
+                from app.routers.images import cleanup_job_files
+                cleanup_job_files(str(job.id), db)
+            except Exception as cleanup_err:
+                print(f"Failed to cleanup after error: {cleanup_err}")
+            
             job.status = "image_generation_failed"
             job.error_message = error_str
         db.commit()
@@ -208,6 +247,16 @@ def regenerate_asset_task(self, target_asset_id: str, reference_asset_id: str = 
             target_asset.status = "success" # Set to success upon successful generation
             url_path = "/images/" + os.path.basename(target_asset.storage_path)
             target_asset.url = url_path
+            
+            # Deduct credit and resync after successful variant generation
+            from app.services import credit_service
+            from app.credit_config import PER_IMAGE_COST_USD
+            actual_cost = cost if cost > 0 else PER_IMAGE_COST_USD
+            credit_service.deduct_expected(actual_cost)
+            try:
+                credit_service.refresh_actual_sync()
+            except Exception:
+                pass  # Non-critical — cache will catch up
         except Exception as e:
             print(f"Error regenerating asset: {e}")
             target_asset.status = "failed"

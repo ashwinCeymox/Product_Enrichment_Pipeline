@@ -85,6 +85,22 @@ def regenerate_asset(asset_id: str, prompt_text: str, background_tasks: Backgrou
     local_asset = db.query(ImageAsset).filter(ImageAsset.id == asset_id).first()
     if not local_asset:
         raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # ── Credit Check (Flow C) ────────────────────────────────────────
+    # Check BEFORE calling the generation API — do not generate first.
+    from app.services import credit_service
+    variant_check = credit_service.check_variant(count=1)
+    if variant_check["status"] == "block":
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": variant_check.get("reason", "Insufficient credits"),
+                "expected_remaining": variant_check.get("expected_remaining"),
+                "variant_cost": variant_check.get("variant_cost"),
+            }
+        )
+    # ── End Credit Check ─────────────────────────────────────────────
         
     job = db.query(ScrapeTask).filter(ScrapeTask.id == local_asset.scrape_task_id).first()
     sku = "unknown"
@@ -137,7 +153,11 @@ def regenerate_asset(asset_id: str, prompt_text: str, background_tasks: Backgrou
     from app.tasks.gen_images import regenerate_asset_task
     regenerate_asset_task.delay(new_asset_id, str(local_asset.id))
         
-    return {"status": "success", "message": "Regenerating..."}
+    response = {"status": "success", "message": "Regenerating..."}
+    if variant_check["status"] == "warn":
+        response["warning"] = True
+        response["warning_message"] = variant_check.get("reason", "Credits running low")
+    return response
 @router.post("/{asset_id}/approve", summary="Approve an image variation")
 def approve_asset(asset_id: str, db: Session = Depends(get_db)):
     asset = db.query(ImageAsset).filter(ImageAsset.id == asset_id).first()

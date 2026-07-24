@@ -293,6 +293,7 @@ async def generate_product_images(
     check_cancel_cb=None,
     on_image_generated_cb=None,
     should_skip_cb=None,
+    on_image_cost_cb=None,
 ) -> dict:
     """
     Generates all lifestyle + feature images for one product.
@@ -356,6 +357,10 @@ async def generate_product_images(
                 save_path=save_path,
             )
         except ImageGenerationError as e:
+            error_msg = str(e)
+            # Re-raise authoritative payment errors — these should stop the whole job
+            if "402" in error_msg and ("Insufficient credits" in error_msg or "insufficient" in error_msg.lower()):
+                raise  # Let the pipeline-level handler deal with credit exhaustion
             print(f"  [image_gen] ✗ lifestyle {i+1} failed: {e}")
             result = None
 
@@ -370,6 +375,8 @@ async def generate_product_images(
             lifestyle_results.append(img_data)
             if on_image_generated_cb:
                 on_image_generated_cb("lifestyle", i, prompt, img_data)
+            if on_image_cost_cb:
+                on_image_cost_cb(cost)
         else:
             failed += 1
             print(f"  [image_gen] ✗ lifestyle {i+1} failed")
@@ -402,6 +409,10 @@ async def generate_product_images(
                 save_path=save_path,
             )
         except ImageGenerationError as e:
+            error_msg = str(e)
+            # Re-raise authoritative payment errors — these should stop the whole job
+            if "402" in error_msg and ("Insufficient credits" in error_msg or "insufficient" in error_msg.lower()):
+                raise  # Let the pipeline-level handler deal with credit exhaustion
             print(f"  [image_gen] ✗ feature '{title}' failed: {e}")
             result = None
 
@@ -418,6 +429,8 @@ async def generate_product_images(
             feature_results.append(img_data)
             if on_image_generated_cb:
                 on_image_generated_cb("feature", i, prompt, img_data, title)
+            if on_image_cost_cb:
+                on_image_cost_cb(cost)
         else:
             failed += 1
             print(f"  [image_gen] ✗ feature '{title}' failed")

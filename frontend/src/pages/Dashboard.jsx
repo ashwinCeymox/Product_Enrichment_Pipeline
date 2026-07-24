@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
-import { Layers, Clock, CheckCircle, XCircle, AlertCircle, RefreshCcw } from 'lucide-react';
+import { Layers, Clock, CheckCircle, XCircle, AlertCircle, RefreshCcw, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { DashboardSkeleton } from '../components/Shimmer';
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const [aiCredits, setAiCredits] = useState(null);
   const navigate = useNavigate();
 
   const handleRowClick = (item) => {
@@ -56,6 +57,20 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const res = await api.get('/credits/all-providers');
+        setAiCredits(res.data);
+      } catch (err) {
+        console.error('Failed to fetch AI credits:', err);
+      }
+    };
+    fetchCredits();
+    const interval = setInterval(fetchCredits, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -115,6 +130,87 @@ export default function Dashboard() {
             <XCircle size={18} className="text-rose-500" />
           </div>
           <p className="text-4xl font-bold text-slate-800 relative z-10">{stats?.failed || 0}</p>
+        </div>
+      </div>
+
+      {/* ── AI Tool Credits ────────────────────────── */}
+      <div>
+        <h2 className="text-sm font-bold text-slate-500 tracking-wider uppercase mb-4">AI Tool Credits</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Nano Banana */}
+          <div className="bg-white rounded-xl border-2 border-slate-100 p-5 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-3 relative z-10">
+              <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Nano Banana</span>
+              {aiCredits?.nano_banana?.insufficient && (
+                <span className="text-[10px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full">INSUFFICIENT</span>
+              )}
+            </div>
+            <div className={`text-2xl font-bold relative z-10 ${
+              aiCredits?.nano_banana?.insufficient ? 'text-rose-600' : 'text-slate-800'
+            }`}>
+              {!aiCredits ? (
+                <div className="h-8 w-24 bg-slate-200 animate-pulse rounded"></div>
+              ) : aiCredits.nano_banana?.credits !== null && aiCredits.nano_banana?.credits !== undefined ? (
+                <>
+                  ${aiCredits.nano_banana.credits.toFixed(2)}
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              ) : aiCredits.nano_banana?.valid ? (
+                <span className="text-emerald-500 text-lg">WORKING</span>
+              ) : (
+                <>
+                  <AlertTriangle size={24} className="text-rose-500 inline-block -mt-1" />
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border-2 border-slate-100 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Deepseek</span>
+            </div>
+            <div className="text-2xl font-bold text-slate-800">
+              {!aiCredits ? (
+                <div className="h-8 w-24 bg-slate-200 animate-pulse rounded"></div>
+              ) : aiCredits.deepseek?.credits !== null && aiCredits.deepseek?.credits !== undefined ? (
+                <>
+                  ${Number(aiCredits.deepseek.credits).toFixed(2)}
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              ) : aiCredits.deepseek?.valid ? (
+                <span className="text-emerald-500 text-lg">WORKING</span>
+              ) : (
+                <>
+                  <AlertTriangle size={24} className="text-rose-500 inline-block -mt-1" />
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border-2 border-slate-100 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold tracking-wider uppercase text-slate-500">Serper</span>
+            </div>
+            <div className="text-2xl font-bold text-slate-800">
+              {!aiCredits ? (
+                <div className="h-8 w-24 bg-slate-200 animate-pulse rounded"></div>
+              ) : aiCredits.serper?.credits !== null && aiCredits.serper?.credits !== undefined ? (
+                <>
+                  ${Number(aiCredits.serper.credits).toFixed(2)}
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              ) : aiCredits.serper?.valid ? (
+                <span className="text-emerald-500 text-lg">WORKING</span>
+              ) : (
+                <>
+                  <AlertTriangle size={24} className="text-rose-500 inline-block -mt-1" />
+                  <span className="text-xs font-semibold text-slate-400 ml-1">CREDITS</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
