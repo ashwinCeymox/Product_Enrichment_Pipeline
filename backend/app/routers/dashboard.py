@@ -113,6 +113,8 @@ def get_error_logs(limit: int = 100, db: Session = Depends(get_db)):
             task_id=t.id,
             task_name=t.task_name,
             source_url=t.url,
+            priority=t.priority,
+            product_type=t.product_type,
             status=t.status,
             current_stage=stage,
             current_status=current_status,

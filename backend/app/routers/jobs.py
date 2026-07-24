@@ -118,10 +118,16 @@ def _build_jobs(
             job.status = "pending"
             job.append_activity("scheduled", f"Scheduled for {scheduled_date}")
         else:
-            celery_id = _dispatch(job.id)
-            job.celery_task_id = celery_id
-            job.status = "queued"
-            job.append_activity("queued", "Dispatched to worker")
+            try:
+                celery_id = _dispatch(job.id)
+                job.celery_task_id = celery_id
+                job.status = "queued"
+                job.append_activity("queued", "Dispatched to worker")
+            except Exception as e:
+                print(f"Celery dispatch failed for job {job.id}: {e}")
+                job.status = "failed"
+                job.error_message = f"Dispatch failed: {e}"
+                job.append_activity("failed", "Failed to dispatch to task queue")
         db.commit()
 
     return batch_id, jobs
@@ -158,6 +164,25 @@ def create_job(
 ):
     _check_credentials()
     valid_urls = [str(u) for u in payload.urls]
+    
+    # ── Deepseek Credit Check ────────────────────────────────────
+    from app.services import credit_service
+    ds_check = credit_service.check_deepseek_initial(len(valid_urls))
+    
+    if ds_check["status"] == "block":
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "provider": "deepseek",
+                "message": ds_check.get("reason", "Insufficient Deepseek credits"),
+                "balance": ds_check.get("balance"),
+                "job_cost": ds_check.get("job_cost"),
+                "block_threshold": ds_check.get("block_threshold"),
+            }
+        )
+    # ── End Deepseek Credit Check ────────────────────────────────
+    
     batch_id, jobs = _build_jobs(
         db,
         urls=valid_urls,
@@ -168,7 +193,7 @@ def create_job(
         product_type=payload.product_type,
         background_tasks=background_tasks,
     )
-    return BatchSubmitResponse(
+    response = BatchSubmitResponse(
         batch_id=batch_id,
         task_name=payload.task_name,
         total_urls=len(valid_urls),
@@ -178,6 +203,10 @@ def create_job(
         jobs=jobs,
         message=f"{len(jobs)} URL job(s) submitted successfully.",
     )
+    # Attach warning to response if applicable
+    if ds_check["status"] == "warn":
+        response.message += f" ⚠️ {ds_check.get('reason', 'Deepseek credits running low.')}"
+    return response
 
 
 @router.post(
@@ -228,6 +257,24 @@ async def upload_csv(
     if not valid_urls:
         raise HTTPException(status_code=422, detail="No valid URLs found in CSV.")
 
+    # ── Deepseek Credit Check ────────────────────────────────────
+    from app.services import credit_service
+    ds_check = credit_service.check_deepseek_initial(len(valid_urls))
+    
+    if ds_check["status"] == "block":
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "provider": "deepseek",
+                "message": ds_check.get("reason", "Insufficient Deepseek credits"),
+                "balance": ds_check.get("balance"),
+                "job_cost": ds_check.get("job_cost"),
+                "block_threshold": ds_check.get("block_threshold"),
+            }
+        )
+    # ── End Deepseek Credit Check ────────────────────────────────
+
     batch_id, jobs = _build_jobs(
         db,
         urls=valid_urls,
@@ -239,7 +286,7 @@ async def upload_csv(
         background_tasks=background_tasks,
     )
 
-    return BatchSubmitResponse(
+    response = BatchSubmitResponse(
         batch_id=batch_id,
         task_name=task_name,
         total_urls=len(raw_urls),
@@ -249,6 +296,9 @@ async def upload_csv(
         jobs=jobs,
         message=f"{len(jobs)} URL(s) submitted; {len(invalid_urls)} skipped.",
     )
+    if ds_check["status"] == "warn":
+        response.message += f" ⚠️ {ds_check.get('reason', 'Deepseek credits running low.')}"
+    return response
 
 
 @router.get("/", response_model=JobListResponse, summary="List jobs with filtering")
@@ -406,6 +456,32 @@ def approve_job(job_id: str, payload: ApprovalRequest, background_tasks: Backgro
     if payload.product_data is not None:
         job.product_data = payload.product_data
 
+    # ── Credit Check (Flow A) ────────────────────────────────────────
+    # Check if OpenRouter balance can cover this job's image generation
+    # before committing to image_generation status.
+    from app.services import credit_service
+    
+    product_data = job.product_data or {}
+    features = product_data.get("key_features", [])
+    total_images = 3 + len(features)  # 3 lifestyle + N feature images
+    
+    credit_check = credit_service.check_initial_approval(total_images)
+    
+    if credit_check["status"] == "block":
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "insufficient_credits",
+                "message": credit_check.get("reason", "Insufficient credits"),
+                "actual_remaining": credit_check.get("actual_remaining"),
+                "expected_remaining": credit_check.get("expected_remaining"),
+                "job_cost": credit_check.get("job_cost"),
+                "total_images": credit_check.get("total_images"),
+                "per_image_cost": credit_check.get("per_image_cost"),
+            }
+        )
+    # ── End Credit Check ─────────────────────────────────────────────
+
     # After JSON approval, it goes to image queue
     job.status = "image_generation"
     job.append_activity("json_approved", "Admin approved the JSON payload, preparing images")
@@ -415,9 +491,22 @@ def approve_job(job_id: str, payload: ApprovalRequest, background_tasks: Backgro
     
     # Use Celery
     from app.tasks.gen_images import generate_images_task
-    generate_images_task.delay(job_id_str)
+    try:
+        generate_images_task.delay(job_id_str)
+    except Exception as e:
+        print(f"Failed to dispatch image generation for job {job_id_str}: {e}")
+        job.status = "image_generation_failed"
+        job.error_message = f"Failed to dispatch to Celery: {e}"
+        job.append_activity("failed", "Failed to dispatch image generation task")
+        db.commit()
+        raise HTTPException(status_code=500, detail="Failed to dispatch task to queue")
             
-    return {"status": "success", "message": "Job approved and sent to image generation"}
+    response = {"status": "success", "message": "Job approved and queued for image generation"}
+    if credit_check["status"] == "warn":
+        response["warning"] = True
+        response["warning_message"] = credit_check.get("reason", "Credits are running low")
+        response["expected_remaining"] = credit_check.get("expected_remaining")
+    return response
 
 @router.post("/{job_id}/reject", summary="Reject JSON")
 def reject_job(job_id: str, db: Session = Depends(get_db)):

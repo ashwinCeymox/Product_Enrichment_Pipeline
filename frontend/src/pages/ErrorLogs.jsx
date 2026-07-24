@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Clock, ServerCrash, XCircle, CheckCircle2, Trash2, Calendar, RefreshCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { ErrorLogsSkeleton } from '../components/Shimmer';
+import InsufficientCreditsModal from '../components/InsufficientCreditsModal';
 
 export default function ErrorLogs() {
   const [logs, setLogs] = useState([]);
@@ -20,6 +21,9 @@ export default function ErrorLogs() {
   const [rescheduleType, setRescheduleType] = useState('now'); // 'now' or 'later'
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditError, setCreditError] = useState(null);
 
   const fetchLogs = async () => {
     try {
@@ -78,9 +82,9 @@ export default function ErrorLogs() {
       await api.post('/jobs', {
         task_name: rescheduleTask.task_name,
         urls: [rescheduleTask.source_url],
-        priority: 'medium', // Default
+        priority: rescheduleTask.priority || 'medium',
         scheduled_date: rescheduleType === 'later' ? rescheduleDate : null,
-        product_type: 'simple', // Default
+        product_type: rescheduleTask.product_type || 'simple',
         created_by: 'admin'
       });
       
@@ -99,7 +103,12 @@ export default function ErrorLogs() {
       setRescheduleTask(null);
     } catch (err) {
       console.error(err);
-      alert('Failed to reschedule task.');
+      if (err.response?.status === 402 && err.response?.data?.detail?.error === 'insufficient_credits') {
+        setCreditError(err.response.data.detail);
+        setShowCreditModal(true);
+      } else {
+        alert('Failed to reschedule task.');
+      }
     } finally {
       setRescheduleLoading(false);
     }
@@ -110,7 +119,7 @@ export default function ErrorLogs() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Error Logs</h1>
@@ -309,6 +318,15 @@ export default function ErrorLogs() {
           </div>
         </div>
       )}
+      
+      <InsufficientCreditsModal 
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        remainingCredits={creditError?.balance}
+        jobCost={creditError?.job_cost}
+        mode="create"
+        providerName={creditError?.provider === 'deepseek' ? 'DeepSeek' : 'OpenRouter'}
+      />
     </div>
   );
 }
